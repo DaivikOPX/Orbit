@@ -1,0 +1,5 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<inventory>
+  <item><id>301</id><name>HoloLens</name><stock>45</stock></item>
+  <item><id>302</id><name>Sensors</name><stock>120</stock></item>
+</inventory>

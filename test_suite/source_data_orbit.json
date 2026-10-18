@@ -1,0 +1,6 @@
+﻿[
+  {"id": "101", "name": "Alex Vance", "role": "Lead Architect", "department": "Core Systems", "score": "98.5"},
+  {"id": "102", "name": "Elena Rostova", "role": "Senior Designer", "department": "Product UI", "score": "94.2"},
+  {"id": "103", "name": "Marcus Brody", "role": "DevOps Engineer", "department": "Infrastructure", "score": "91.8"},
+  {"id": "104", "name": "Chloe Decker", "role": "Security Analyst", "department": "SecOps", "score": "96.0"}
+]

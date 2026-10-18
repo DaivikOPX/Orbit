@@ -1,0 +1,33 @@
+# ==============================================================================
+# Orbit - .gitignore
+# ==============================================================================
+
+# User / Debug Logs
+*.log
+orbit_debug.log
+
+# Heavy Third-Party External Binaries (>50MB)
+# Note: Use scripts/download_ffmpeg.ps1 or 'winget install Gyan.FFmpeg'
+ffmpeg.exe
+ffprobe.exe
+ffplay.exe
+
+# Temporary Sample Files
+sample_test.*
+
+# Visual Studio & Windows Build Artifacts
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.pdb
+
+# Operating System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
