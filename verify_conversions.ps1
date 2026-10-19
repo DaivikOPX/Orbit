@@ -1,12 +1,12 @@
-# Orbit Comprehensive Conversion & Tool Verification Suite
+# Saturn Comprehensive Conversion & Tool Verification Suite
 param(
-    [string]$OrbitExe = "C:\Users\daivi\OneDrive\Desktop\Orbit.exe",
-    [string]$TestDir = "C:\Users\daivi\.gemini\antigravity\scratch\orbit-windows\test_suite"
+    [string]$SaturnExe = "D:\orbit\Saturn.exe",
+    [string]$TestDir = "D:\orbit\test_suite"
 )
 
 $ErrorActionPreference = "Stop"
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "   ORBIT FOR WINDOWS: COMPLETE CONVERSION & TOOL AUDIT    " -ForegroundColor Cyan
+Write-Host "   SATURN FOR WINDOWS: COMPLETE CONVERSION & TOOL AUDIT   " -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -58,7 +58,7 @@ $testBmp.Save($srcPng, [System.Drawing.Imaging.ImageFormat]::Png)
 $testBmp.Dispose()
 
 # B. Video (MP4 via ffmpeg)
-$ffmpegExe = "C:\Users\daivi\OneDrive\Desktop\ffmpeg.exe"
+$ffmpegExe = if (Test-Path "D:\orbit\ffmpeg.exe") { "D:\orbit\ffmpeg.exe" } else { "C:\Users\daivi\OneDrive\Desktop\ffmpeg.exe" }
 $srcMp4 = Join-Path $TestDir "source_video.mp4"
 & $ffmpegExe -hide_banner -loglevel error -y -f lavfi -i "testsrc=duration=2:size=320x240:rate=15" -f lavfi -i "sine=frequency=440:duration=2" -c:v libx264 -c:a aac $srcMp4
 
@@ -99,9 +99,9 @@ $srcXml = Join-Path $TestDir "source_data.xml"
 # G. Document (Markdown & TXT)
 $srcMd = Join-Path $TestDir "source_doc.md"
 @"
-# Orbit Spatial Architecture
+# Saturn Spatial Architecture
 ## Native Windows Utility
-Orbit brings fluid spatial interactions and 300+ format conversions directly to Windows 11.
+Saturn brings fluid spatial interactions and 300+ format conversions directly to Windows 11.
 Features include:
 - Zero-cloud execution
 - Instant local conversions
@@ -110,7 +110,7 @@ Features include:
 
 $srcTxt = Join-Path $TestDir "source_doc.txt"
 @"
-Orbit System Report
+Saturn System Report
 Version: 1.0.0
 Engine: Native C# WPF with FFmpeg Media Core
 Platform: Windows 11 x64
@@ -124,8 +124,8 @@ Write-Host "`n[2/7] Verifying Image Conversions..." -ForegroundColor Yellow
 $imageTargets = @("png", "jpg", "webp", "ico", "bmp", "tiff", "gif", "pdf")
 
 foreach ($t in $imageTargets) {
-    & $OrbitExe convert $srcPng --to $t | Out-Null
-    $out = Join-Path $TestDir ("source_image_orbit." + $t)
+    & $SaturnExe convert $srcPng --to $t | Out-Null
+    $out = Join-Path $TestDir ("source_image_saturn." + $t)
     $ok = (Test-Path $out) -and ((Get-Item $out).Length -gt 0)
     
     # Additional verification
@@ -145,8 +145,8 @@ Write-Host "`n[3/7] Verifying Video Conversions..." -ForegroundColor Yellow
 $videoTargets = @("mp4", "gif", "mp3", "webm", "mkv", "mov", "avi", "wav")
 
 foreach ($t in $videoTargets) {
-    & $OrbitExe convert $srcMp4 --to $t | Out-Null
-    $out = Join-Path $TestDir ("source_video_orbit." + $t)
+    & $SaturnExe convert $srcMp4 --to $t | Out-Null
+    $out = Join-Path $TestDir ("source_video_saturn." + $t)
     $ok = (Test-Path $out) -and ((Get-Item $out).Length -gt 0)
     Record-Result "Video" "MP4 -> $t" $out $ok "OK"
 }
@@ -156,8 +156,8 @@ Write-Host "`n[4/7] Verifying Audio Conversions..." -ForegroundColor Yellow
 $audioTargets = @("mp3", "wav", "flac", "m4a", "opus", "ogg")
 
 foreach ($t in $audioTargets) {
-    & $OrbitExe convert $srcWav --to $t | Out-Null
-    $out = Join-Path $TestDir ("source_audio_orbit." + $t)
+    & $SaturnExe convert $srcWav --to $t | Out-Null
+    $out = Join-Path $TestDir ("source_audio_saturn." + $t)
     $ok = (Test-Path $out) -and ((Get-Item $out).Length -gt 0)
     Record-Result "Audio" "WAV -> $t" $out $ok "OK"
 }
@@ -167,8 +167,8 @@ Write-Host "`n[5/7] Verifying Data Conversions..." -ForegroundColor Yellow
 # CSV conversions
 $csvTargets = @("json", "html", "md", "txt")
 foreach ($t in $csvTargets) {
-    & $OrbitExe convert $srcCsv --to $t | Out-Null
-    $out = Join-Path $TestDir ("source_data_orbit." + $t)
+    & $SaturnExe convert $srcCsv --to $t | Out-Null
+    $out = Join-Path $TestDir ("source_data_saturn." + $t)
     $ok = (Test-Path $out) -and ((Get-Item $out).Length -gt 0)
     $detail = "OK"
     if ($ok -and $t -eq "json") {
@@ -182,8 +182,8 @@ foreach ($t in $csvTargets) {
 # JSON conversions
 $jsonTargets = @("csv", "html", "md", "txt")
 foreach ($t in $jsonTargets) {
-    & $OrbitExe convert $srcJson --to $t | Out-Null
-    $out = Join-Path $TestDir ("source_data_orbit." + $t)
+    & $SaturnExe convert $srcJson --to $t | Out-Null
+    $out = Join-Path $TestDir ("source_data_saturn." + $t)
     $ok = (Test-Path $out) -and ((Get-Item $out).Length -gt 0)
     $detail = "OK"
     if ($ok -and $t -eq "csv") {
@@ -196,8 +196,8 @@ foreach ($t in $jsonTargets) {
 # XML conversions
 $xmlTargets = @("json", "csv")
 foreach ($t in $xmlTargets) {
-    & $OrbitExe convert $srcXml --to $t | Out-Null
-    $out = Join-Path $TestDir ("source_data_orbit." + $t)
+    & $SaturnExe convert $srcXml --to $t | Out-Null
+    $out = Join-Path $TestDir ("source_data_saturn." + $t)
     $ok = (Test-Path $out) -and ((Get-Item $out).Length -gt 0)
     Record-Result "Data" "XML -> $t" $out $ok "OK"
 }
@@ -206,8 +206,8 @@ foreach ($t in $xmlTargets) {
 Write-Host "`n[6/7] Verifying Document Conversions..." -ForegroundColor Yellow
 $docTargets = @("pdf", "docx", "html", "txt")
 foreach ($t in $docTargets) {
-    & $OrbitExe convert $srcMd --to $t | Out-Null
-    $out = Join-Path $TestDir ("source_doc_orbit." + $t)
+    & $SaturnExe convert $srcMd --to $t | Out-Null
+    $out = Join-Path $TestDir ("source_doc_saturn." + $t)
     $ok = (Test-Path $out) -and ((Get-Item $out).Length -gt 0)
     $detail = "OK"
     if ($ok -and $t -eq "pdf") {
@@ -228,7 +228,7 @@ foreach ($t in $docTargets) {
 Write-Host "`n[7/7] Verifying Built-in Tools Suite..." -ForegroundColor Yellow
 $tools = @("compress", "metadata", "grayscale", "rotate", "hash")
 foreach ($tool in $tools) {
-    & $OrbitExe tool $srcPng --action $tool | Out-Null
+    & $SaturnExe tool $srcPng --action $tool | Out-Null
     if ($tool -eq "hash") {
         # Clipboard check
         Add-Type -AssemblyName System.Windows.Forms
@@ -249,12 +249,12 @@ foreach ($tool in $tools) {
 }
 
 # Video tools: mute, snapshot
-& $OrbitExe tool $srcMp4 --action mute | Out-Null
+& $SaturnExe tool $srcMp4 --action mute | Out-Null
 $outMute = Join-Path $TestDir "source_video_muted.mp4"
 $okMute = (Test-Path $outMute) -and ((Get-Item $outMute).Length -gt 0)
 Record-Result "Tool" "Video Tool: mute" $outMute $okMute "OK"
 
-& $OrbitExe tool $srcMp4 --action snapshot | Out-Null
+& $SaturnExe tool $srcMp4 --action snapshot | Out-Null
 $outSnap = Join-Path $TestDir "source_video_cover.jpg"
 $okSnap = (Test-Path $outSnap) -and ((Get-Item $outSnap).Length -gt 0)
 Record-Result "Tool" "Video Tool: snapshot" $outSnap $okSnap "OK"

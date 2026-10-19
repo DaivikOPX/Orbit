@@ -1,10 +1,14 @@
 # ==============================================================================
-# Orbit - .gitignore
+# Saturn - .gitignore
 # ==============================================================================
 
 # User / Debug Logs
 *.log
+saturn_debug.log
 orbit_debug.log
+
+# Test Artifacts
+test_suite/
 
 # Heavy Third-Party External Binaries (>50MB)
 # Note: Use scripts/download_ffmpeg.ps1 or 'winget install Gyan.FFmpeg'

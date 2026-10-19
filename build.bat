@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 echo ============================================
-echo   Building Orbit for Windows
+echo   Building Saturn for Windows
 echo ============================================
 
 set CSC=C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe
@@ -14,11 +14,11 @@ if not exist "%CSC%" (
 
 set REFS=C:\Windows\Microsoft.NET\Framework64\v4.0.30319\WPF\PresentationFramework.dll,C:\Windows\Microsoft.NET\Framework64\v4.0.30319\WPF\PresentationCore.dll,C:\Windows\Microsoft.NET\Framework64\v4.0.30319\WPF\WindowsBase.dll,C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Xaml.dll,System.Windows.Forms.dll,System.Drawing.dll,System.Core.dll,System.dll,System.Xml.dll,System.Xml.Linq.dll,System.IO.Compression.dll,System.IO.Compression.FileSystem.dll
 
-echo Compiling OrbitApp.cs ...
-"%CSC%" /target:winexe /optimize+ /win32icon:Orbit.ico /out:Orbit.exe /r:%REFS% OrbitApp.cs
+echo Compiling SaturnApp.cs ...
+"%CSC%" /target:winexe /optimize+ /win32icon:Saturn.ico /out:Saturn.exe /r:%REFS% SaturnApp.cs
 
 if %ERRORLEVEL% EQU 0 (
-    echo [SUCCESS] Orbit.exe built successfully!
+    echo [SUCCESS] Saturn.exe built successfully!
 ) else (
     echo [ERROR] Compilation failed.
 )

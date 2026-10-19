@@ -1,22 +1,22 @@
 <div align="center">
 
-  <img src="orbit_logo.png" alt="Orbit Logo" width="130" height="130" style="border-radius: 50%; box-shadow: 0 0 40px rgba(255, 255, 255, 0.1);">
+  <img src="saturn_logo.png" alt="Saturn Logo" width="140" height="140" style="border-radius: 28px; box-shadow: 0 0 50px rgba(255, 122, 0, 0.25);">
 
-  # **O R B I T**
+  # **S A T U R N**
 
   ### *The Next-Generation, Zero-Drag Radial Context Workspace for Windows*
 
   [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-000000?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/DaivikOPX/Orbit)
-  [![Binary Size](https://img.shields.io/badge/Size-~99%20KB%20Standalone-000000?style=for-the-badge&logo=speedtest&logoColor=white)](https://github.com/DaivikOPX/Orbit/releases)
-  [![Physics](https://img.shields.io/badge/Compositor-120%20FPS%20GPU-000000?style=for-the-badge&logo=directx&logoColor=white)](https://github.com/DaivikOPX/Orbit)
+  [![Binary Size](https://img.shields.io/badge/Size-~100%20KB%20Standalone-000000?style=for-the-badge&logo=speedtest&logoColor=white)](https://github.com/DaivikOPX/Orbit/releases)
+  [![Compositor](https://img.shields.io/badge/Compositor-120%20FPS%20GPU-000000?style=for-the-badge&logo=directx&logoColor=FF7A00)](https://github.com/DaivikOPX/Orbit)
   [![License](https://img.shields.io/badge/License-MIT-000000?style=for-the-badge)](LICENSE)
-  [![Zero Bloat](https://img.shields.io/badge/Runtime-Zero%20Electron%20%7C%20Native%20WPF-000000?style=for-the-badge&logo=dotnet&logoColor=white)](https://github.com/DaivikOPX/Orbit)
+  [![Native Runtime](https://img.shields.io/badge/Runtime-Zero%20Electron%20%7C%20Native%20WPF-000000?style=for-the-badge&logo=dotnet&logoColor=white)](https://github.com/DaivikOPX/Orbit)
 
   <br />
 
   <p align="center">
     <b>Transform • Convert • Compress • Inspect</b><br />
-    Drag any file in Windows Explorer, flick your mouse toward a sector, and execute instant transformations in milliseconds.
+    Select any file in Windows Explorer, press <b>F8</b> or flick your mouse, and execute instant high-fidelity transformations in milliseconds.
   </p>
 
   <p align="center">
@@ -34,78 +34,77 @@
 
 ## ✦ Overview
 
-**Orbit** is a hyper-minimalist, hardware-accelerated radial HUD designed to eliminate the friction of routine file conversions and data transformations. 
+**Saturn** is a hyper-minimalist, hardware-accelerated radial HUD and universal file engine for Windows. Designed to eliminate the slow, cluttered nested menus of traditional file utilities, Saturn provides a unified, fluid workspace for high-speed file manipulation.
 
-Traditional context menus on Windows are slow, visually cluttered, and require nested mouse journeys across multiple levels. Orbit replaces this with a **fluid, gesture-driven radial wheel** that summons under your cursor when you drag a file:
-
-1. **Grab & Hold**: Click and drag any file or group of files in Windows Explorer.
-2. **Radial HUD Summon**: A 120 FPS glass-morphism wheel unfolds around your cursor with spring-physics easing.
-3. **Flick & Transform**: Flick your cursor toward the target format and release. Orbit executes the transformation atomically and deposits the converted asset alongside your source file.
+1. **Instant Selection**: Click or select any file in Windows Explorer or Desktop.
+2. **Radial HUD Summon**: Press **F8** (or right-click to choose "Saturn Quick Tools"). A fluid, 120 FPS radial wheel unfolds with spring physics around your cursor.
+3. **Atomic Execution**: Select your target operation. Saturn transforms the asset atomically, writes the result cleanly alongside your source file as `[name]_saturn.[ext]`, and alerts you with a sleek, pitch-black notification card with 1-click actions.
 
 ---
 
 ## ⚡ Key Features
 
+### 🪐 Minimalist Pitch-Black Notification System
+Saturn features a completely re-engineered notification toast card:
+- **Pure Pitch Black** (`#000000`) obsidian background with sleek dark borders.
+- **Saturn Radiant Gold & Orange Accents** (`#FF7A00` / `#FF8C00`) matching planetary ring aesthetics.
+- **Interactive Action Buttons**: 1-click "Open File" and "Show in Folder" buttons built right into the toast card.
+- Smooth hardware-accelerated cubic-easing fade animations.
+
 ### 🎯 Context-Aware Intelligence
-Orbit dynamically detects the MIME type, magic bytes, and extension of any dragged payload. It populates the wheel only with meaningful, high-velocity actions:
-- **Images** → WebP, PNG, JPEG, ICO, TIFF, BMP, PDF, Grayscale, Rotate, Compress
-- **Videos** → MP4, WebM, MKV, AVI, MOV, Animated GIF, Audio Extractor (MP3/WAV), Mute
+Saturn dynamically sniffs file headers, magic bytes, and MIME types to present only optimal, high-value transformations:
+- **Images** → WebP, PNG, JPEG, ICO, TIFF, BMP, PDF, Grayscale, Rotate 90°, Lossless Compress
+- **Videos** → MP4, WebM, MKV, AVI, MOV, Animated GIF, Audio Extractor (MP3/WAV), Mute Audio
 - **Audio** → MP3, WAV, FLAC, AAC, M4A, OGG, OPUS
-- **Documents & Text** → Markdown, HTML, Plain Text, PDF, DOCX
+- **Documents** → Markdown, HTML, Plain Text, PDF (Native Print), DOCX (Clean OpenXML embedding)
 - **Data & Tables** → JSON, CSV, XML, Markdown Table, HTML Grid
 
 ### 🚀 120 FPS Native Hardware Compositor
-Built directly on the Windows Presentation Foundation (WPF) and DirectWrite / DirectX rendering pipeline with zero Electron, zero Chromium, and zero WebView overhead. Orbit idles at **0.0% CPU** and consumes only **~20 MB RAM**.
+Built directly on Windows Presentation Foundation (WPF) with DirectWrite and DirectX acceleration.
+- **Zero Electron**, **zero Chromium**, **zero Node.js**.
+- Idles at **0.0% CPU** and only **~20 MB RAM**.
+- Standalone portable binary of only **~100 KB**.
 
-### 🛡️ Military-Grade Zero-Error Fault Tolerance
-- **Atomic File Writing**: Conversions write to isolated temporary streams before replacing or finalizing destination files, preventing partial corruption.
-- **Auto-Disambiguation**: Existing files are never overwritten blindly; Orbit appends smart clean suffixes (`_orbit.ext`).
-- **Resilient Fallback Engines**: If FFmpeg or secondary native encoders encounter missing codecs, Orbit automatically waterfalls to built-in Windows GDI+, WIC (Windows Imaging Component), and native .NET streams.
-
-### 🖤 Pure Pitch-Black Minimalist Aesthetic
-Engineered for dark-mode purists:
-- Canvas rendered in pitch black (`#000000`).
-- Geometric precision rings with luminous subtle strokes (`#1F1F1F` to `#333333`).
-- Micro-haptic visual feedback: smooth spring scale expansion, radial hover glow, and crisp typography.
+### 🛡️ Atomic Fault Tolerance & No-Overwrite Guarantee
+- **Atomic Staging**: Conversions write to isolated memory buffers or temp files before atomic disk swap, completely preventing partial or corrupt files.
+- **Smart Disambiguation**: Files are named cleanly (`_saturn.ext`, `_saturn_2.ext`), guaranteeing zero data loss or accidental overwrites.
+- **Multi-Engine Fallbacks**: Cascades automatically from native encoders (.NET OpenXML, WIC, GDI+) to FFmpeg without interrupting the user workflow.
 
 ---
 
-## 📊 Supported Conversions
+## 📊 Supported Conversions & Operations
 
 | Category | Input Formats | Available Target Operations |
 | :--- | :--- | :--- |
-| **🖼️ Images** | `.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.tiff`, `.ico`, `.gif` | **PNG**, **JPG** (High-Q), **WEBP**, **ICO** (Multi-res 256→16px), **BMP**, **TIFF**, **PDF**, **Grayscale**, **Lossless Compress**, **Rotate 90°** |
+| **🖼️ Images** | `.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.tiff`, `.ico`, `.gif` | **PNG**, **JPG** (High-Q), **WEBP**, **ICO** (Multi-frame 256→16px), **BMP**, **TIFF**, **PDF**, **Grayscale**, **Lossless Compress**, **Rotate 90°** |
 | **🎬 Video** | `.mp4`, `.mkv`, `.webm`, `.avi`, `.mov`, `.wmv`, `.flv` | **MP4** (H.264), **WebM** (VP9), **MKV**, **AVI**, **MOV**, **Animated GIF**, **Extract MP3**, **Extract WAV**, **Mute Audio Track** |
 | **🎵 Audio** | `.mp3`, `.wav`, `.flac`, `.aac`, `.m4a`, `.ogg`, `.opus`, `.wma` | **MP3** (320 kbps), **WAV** (16-bit PCM), **FLAC** (Lossless), **AAC**, **M4A**, **OGG** (Vorbis), **OPUS** |
-| **📄 Documents** | `.md`, `.markdown`, `.txt`, `.log`, `.csv`, `.json` | **HTML** (Styled Document), **Markdown**, **Plain Text**, **PDF** (Native Print), **DOCX** |
+| **📄 Documents** | `.md`, `.markdown`, `.txt`, `.log`, `.csv`, `.json`, `.pdf`, `.docx` | **HTML** (Styled Document), **Markdown**, **Plain Text**, **PDF** (High-Res Render), **DOCX** (DrawingML Image & Formatting) |
 | **🗄️ Structured Data** | `.csv`, `.json`, `.xml` | **CSV ↔ JSON**, **JSON ↔ XML**, **Markdown Table**, **HTML Data Table** |
 
 ---
 
 ## 🏗️ Architecture
 
-Orbit uses a decoupled, event-driven reactive architecture:
-
 ```mermaid
 flowchart TD
-    A["🗂️ File Drag Event in Windows Explorer"] --> B{"MIME & Magic-Byte Sniffer"}
-    B -->|Image| C["Image Action Set"]
-    B -->|Video| D["Video Action Set"]
-    B -->|Audio| E["Audio Action Set"]
-    B -->|Document| F["Document Action Set"]
-    B -->|Data| G["Data Action Set"]
+    A["🗂️ File Selection in Explorer (Hotkey F8 or Right-Click)"] --> B{"MIME & Magic-Byte Sniffer"}
+    B -->|Raster / Vector Image| C["Image Action Pipeline"]
+    B -->|Audio / Video Media| D["Media Engine Pipeline"]
+    B -->|Document / Text / Markup| E["Document Engine Pipeline"]
+    B -->|Structured Tabular / JSON| F["Data Parser Pipeline"]
     
-    C & D & E & F & G --> H["120 FPS Radial HUD Geometry Engine"]
-    H --> I["User Gesture Flick & Sector Selection"]
+    C & D & E & F --> G["120 FPS Radial HUD Compositor"]
+    G --> H["Sector Selection & Gesture Flick"]
     
-    I --> J{"Engine Dispatcher"}
-    J -->|Media Streams| K["FFmpeg Core Engine"]
-    J -->|Raster & Graphics| L["Windows Imaging Component (WIC)"]
-    J -->|Structured Data| M["Orbit XML/JSON/CSV Parser"]
-    J -->|Documents| N["Orbit Markdown/HTML/XPS Engine"]
+    H --> I{"Unified Engine Dispatcher"}
+    I -->|Media Streams| J["FFmpeg Core Engine"]
+    I -->|Graphics & Image Processing| K["Windows Imaging Component (WIC)"]
+    I -->|Document & OpenXML Structure| L["Saturn OpenXML & PDF Engine"]
+    I -->|Tabular & Serialized Formats| M["Saturn XML/JSON/CSV Parser"]
     
-    K & L & M & N --> O["Atomic Output Writer (_orbit.ext)"]
-    O --> P["Haptic UI Toast & OS Completion Sound"]
+    J & K & L & M --> N["Atomic Output Writer (_saturn.ext)"]
+    N --> O["Pitch-Black Notification Toast & Sound Haptic"]
 ```
 
 ---
@@ -113,12 +112,13 @@ flowchart TD
 ## ⚡ Quick Start
 
 ### Option 1: Standalone Download (Instant)
-1. Download **[`Orbit.exe`](Orbit.exe)** from the repository or releases.
-2. Place `Orbit.exe` in any folder (e.g. `D:\orbit\` or `C:\Program Files\Orbit\`).
-3. Run `Orbit.exe`. Orbit silently docks in your Windows System Tray and begins listening for file drag gestures.
+1. Download **[`Saturn.exe`](Saturn.exe)** from the repository releases.
+2. Place `Saturn.exe` anywhere (e.g., `D:\orbit\` or `C:\Program Files\Saturn\`).
+3. Launch `Saturn.exe`. It docks in your Windows System Tray and registers the **F8** global hotkey.
+4. Select any file and press **F8** to open the radial dial, or right-click any file to use "Saturn Quick Tools".
 
 *(Optional)* To enable full video and audio conversions:
-- Run `scripts\download_ffmpeg.bat` or run:
+- Place `ffmpeg.exe` alongside `Saturn.exe` or install via winget:
   ```powershell
   winget install Gyan.FFmpeg
   ```
@@ -127,16 +127,16 @@ flowchart TD
 
 ## 🛠️ Build From Source
 
-Orbit is designed with **zero external toolchain dependencies**. It can be compiled on any standard Windows machine using the built-in Microsoft .NET Framework compiler (`csc.exe`):
+Saturn requires **zero external toolchains or SDKs**. It compiles out-of-the-box using the standard Microsoft .NET Framework compiler (`csc.exe`) bundled with Windows:
+
+### 1-Click PowerShell Build
+```powershell
+.\build.ps1
+```
 
 ### 1-Click Batch Build
 ```cmd
 build.bat
-```
-
-### PowerShell Build
-```powershell
-.\build.ps1
 ```
 
 ### Manual Compilation
@@ -144,7 +144,7 @@ build.bat
 $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 $refs = "PresentationFramework.dll,PresentationCore.dll,WindowsBase.dll,System.Xaml.dll,System.Windows.Forms.dll,System.Drawing.dll,System.Core.dll,System.dll,System.Xml.dll,System.Xml.Linq.dll,System.IO.Compression.dll,System.IO.Compression.FileSystem.dll"
 
-& $csc /target:winexe /optimize+ /win32icon:Orbit.ico /out:Orbit.exe /r:$refs OrbitApp.cs
+& $csc /target:winexe /optimize+ /win32icon:Saturn.ico /out:Saturn.exe /r:$refs SaturnApp.cs
 ```
 
 ---
@@ -153,57 +153,52 @@ $refs = "PresentationFramework.dll,PresentationCore.dll,WindowsBase.dll,System.X
 
 ```text
 D:\orbit\
-├── 📄 OrbitApp.cs            # Complete C# WPF source code (~2,800 lines)
-├── 🚀 Orbit.exe              # Standalone compiled binary (99 KB)
-├── 🎨 Orbit.ico              # Multi-resolution pitch-black Windows icon (256px to 16px)
-├── 🖼️ orbit_logo.svg         # Scalable vector brand asset
-├── 🖼️ orbit_logo.png         # High-resolution raster brand logo
-├── 🐍 render_minimal_logo.py # Logo generator script (Python / Pillow)
-├── ⚙️ build.bat              # One-click Windows CMD compilation script
-├── ⚡ build.ps1              # Automated PowerShell build script
-├── 🏃 run.bat                # Detached process launcher
-├── 📜 LICENSE                # MIT Open Source License
-├── 📖 README.md              # Documentation & Architecture
-├── 📁 .github/workflows/     # CI / CD GitHub Actions workflow for automated builds
+├── 📄 SaturnApp.cs           # Complete C# WPF source code (~3,250 lines)
+├── 🚀 Saturn.exe             # Standalone compiled binary (~100 KB)
+├── 🎨 Saturn.ico             # Multi-layer Windows icon (16px to 256px)
+├── 🖼️ saturn_logo.svg        # Scalable vector brand asset
+├── 🖼️ saturn_logo.png        # High-resolution raster brand logo (Pitch-Black BG)
+├── 🖼️ saturn_logo_transparent.png # High-resolution brand logo (Alpha Channel)
+├── ⚙️ build.bat             # One-click Windows CMD compilation script
+├── ⚡ build.ps1             # Automated PowerShell build script
+├── 🏃 run.bat               # Fast background launcher
+├── 📜 LICENSE               # MIT Open Source License
+├── 📖 README.md             # Documentation & Architecture
+├── 📁 .github/workflows/    # GitHub Actions CI workflow (Automated Build & Release)
 ├── 📁 scripts/
-│   ├── download_ffmpeg.bat   # Automated FFmpeg setup batch script
-│   └── download_ffmpeg.ps1   # PowerShell FFmpeg downloader
+│   ├── download_ffmpeg.bat  # Automated FFmpeg setup batch script
+│   └── download_ffmpeg.ps1  # PowerShell FFmpeg downloader
 └── 📁 test_suite/
-    ├── verify_conversions.ps1 # Comprehensive multi-format test runner
-    ├── source_image.png      # Fixture: PNG image
-    ├── source_video.mp4      # Fixture: H.264 video
-    ├── source_audio.wav      # Fixture: 16-bit PCM audio
-    ├── source_doc.md         # Fixture: Markdown document
-    └── source_data.json      # Fixture: Structured JSON dataset
+    └── verify_conversions.ps1 # Comprehensive 43-test automated validation suite
 ```
 
 ---
 
 ## 🧪 Verification & Automated Testing
 
-Orbit includes an automated end-to-end verification suite in [`test_suite/`](test_suite/):
+Saturn includes an exhaustive end-to-end verification suite in [`verify_conversions.ps1`](verify_conversions.ps1):
 
-To run all automated conversion tests:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\verify_conversions.ps1
 ```
 
-**Results:**
-- ✅ 10/10 Image transformations verified
-- ✅ 8/8 Video & audio extractions verified
-- ✅ 6/6 Audio transcodings verified
-- ✅ 4/4 Document compilations verified
-- ✅ 5/5 Data transformations verified
+**Verification Results: 43 / 43 Passed (100% Success Rate)**
+- ✅ **Images (8/8)**: PNG, JPG, WEBP, ICO, BMP, TIFF, GIF, PDF
+- ✅ **Videos (8/8)**: MP4, GIF, MP3, WEBM, MKV, MOV, AVI, WAV
+- ✅ **Audio (6/6)**: MP3, WAV, FLAC, M4A, OPUS, OGG
+- ✅ **Data & Tables (10/10)**: CSV ↔ JSON, JSON ↔ XML, Markdown Table, HTML Table, TXT
+- ✅ **Documents (4/4)**: MD → PDF, MD → DOCX, MD → HTML, MD → TXT
+- ✅ **Built-in Tools (7/7)**: Lossless Compress, Metadata Stripper, Grayscale, Rotate 90°, SHA-256 Checksum, Mute Video, Video Snapshot
 
 ---
 
 ## 🤝 Contributing
 
-Contributions to Orbit are welcome! Feel free to:
+Contributions to Saturn are welcome! Feel free to:
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/NewFormatSupport`)
+2. Create your feature branch (`git checkout -b feature/NewCapability`)
 3. Commit your changes (`git commit -m 'feat: Add AVIF image support'`)
-4. Push to the branch (`git push origin feature/NewFormatSupport`)
+4. Push to the branch (`git push origin feature/NewCapability`)
 5. Open a Pull Request
 
 ---

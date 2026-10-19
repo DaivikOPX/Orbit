@@ -1,11 +1,11 @@
-# Orbit Build Script (PowerShell)
+# Saturn Build Script (PowerShell)
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $ScriptDir) { $ScriptDir = (Get-Location).Path }
 Set-Location $ScriptDir
 
 Write-Host "============================================" -ForegroundColor Cyan
-Write-Host "   Building Orbit for Windows (PowerShell)  " -ForegroundColor Cyan
+Write-Host "   Building Saturn for Windows (PowerShell) " -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 
 # Locate 64-bit or 32-bit .NET Framework 4.x csc.exe compiler
@@ -24,9 +24,9 @@ if (-not (Test-Path $csc)) {
 }
 
 $wpfDir = Join-Path $netDir "WPF"
-$ico = Join-Path $ScriptDir "Orbit.ico"
-$src = Join-Path $ScriptDir "OrbitApp.cs"
-$out = Join-Path $ScriptDir "Orbit.exe"
+$ico = Join-Path $ScriptDir "Saturn.ico"
+$src = Join-Path $ScriptDir "SaturnApp.cs"
+$out = Join-Path $ScriptDir "Saturn.exe"
 
 $refs = @(
     (Join-Path $wpfDir "PresentationFramework.dll"),
@@ -52,7 +52,7 @@ $refArgs = "/r:" + ($refs -join ",")
 $proc = Start-Process -FilePath $csc -ArgumentList "/target:winexe /optimize+ /win32icon:`"$ico`" /out:`"$out`" `"$refArgs`" `"$src`"" -NoNewWindow -Wait -PassThru
 
 if ($proc.ExitCode -eq 0) {
-    Write-Host "[SUCCESS] Orbit.exe compiled successfully!" -ForegroundColor Green
+    Write-Host "[SUCCESS] Saturn.exe compiled successfully!" -ForegroundColor Green
     exit 0
 } else {
     Write-Host "[ERROR] Compilation failed with exit code $($proc.ExitCode)" -ForegroundColor Red

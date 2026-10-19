@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="planetGrad" x1="25%" y1="10%" x2="75%" y2="90%">
+      <stop offset="0%" stop-color="#FFB74D"/>
+      <stop offset="40%" stop-color="#FF8A00"/>
+      <stop offset="100%" stop-color="#E65100"/>
+    </linearGradient>
+    <linearGradient id="ringGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#FF6D00"/>
+      <stop offset="50%" stop-color="#FFA726"/>
+      <stop offset="100%" stop-color="#FF9100"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FF9800" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#FF9800" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="#000000" rx="96"/>
+  <circle cx="256" cy="256" r="220" fill="url(#glow)"/>
+  
+  <!-- Back Ring Segment -->
+  <g transform="rotate(-28 256 256)">
+    <path d="M 60 256 A 210 58 0 0 1 452 256" stroke="url(#ringGrad)" stroke-width="22" fill="none" stroke-linecap="round"/>
+    <!-- Orbiting Moon -->
+    <circle cx="395" cy="210" r="26" fill="url(#planetGrad)"/>
+  </g>
+
+  <!-- Planet Body -->
+  <circle cx="256" cy="256" r="116" fill="url(#planetGrad)"/>
+
+  <!-- Front Ring Segment -->
+  <g transform="rotate(-28 256 256)">
+    <path d="M 452 256 A 210 58 0 0 1 60 256" stroke="url(#ringGrad)" stroke-width="22" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>

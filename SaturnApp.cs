@@ -34,7 +34,7 @@ using Path = System.IO.Path;
 using Image = System.Drawing.Image;
 using Point = System.Windows.Point;
 
-namespace OrbitWindows {
+namespace SaturnWindows {
     // === WIN32 API HELPERS ===
     internal static class Win32 {
         [DllImport("user32.dll")]
@@ -175,9 +175,43 @@ namespace OrbitWindows {
         }
     }
 
-    // === MINIMALIST ORBIT VECTOR LOGO GENERATOR ===
-    public static class OrbitLogo {
-        public static Canvas CreateVector(double size, bool isDark = false) {
+    // === SATURN LOGO (PIXEL-PERFECT EMBEDDED + VECTOR FALLBACK) ===
+    public static class SaturnLogo {
+        private static System.Windows.Media.Imaging.BitmapImage _cachedLogo;
+        private const string LogoPngBase64 = "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";
+
+        public static System.Windows.Media.Imaging.BitmapSource GetLogoSource() {
+            if (_cachedLogo == null) {
+                try {
+                    byte[] bytes = Convert.FromBase64String(LogoPngBase64);
+                    var bi = new System.Windows.Media.Imaging.BitmapImage();
+                    bi.BeginInit();
+                    bi.StreamSource = new MemoryStream(bytes);
+                    bi.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                    bi.EndInit();
+                    bi.Freeze();
+                    _cachedLogo = bi;
+                } catch { }
+            }
+            return _cachedLogo;
+        }
+
+        public static FrameworkElement CreateVector(double size, bool isDark = false) {
+            try {
+                var src = GetLogoSource();
+                if (src != null) {
+                    var img = new System.Windows.Controls.Image {
+                        Source = src,
+                        Width = size,
+                        Height = size,
+                        HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    };
+                    System.Windows.Media.RenderOptions.SetBitmapScalingMode(img, System.Windows.Media.BitmapScalingMode.HighQuality);
+                    return img;
+                }
+            } catch { }
+
             var c = new Canvas {
                 Width = size,
                 Height = size,
@@ -187,74 +221,59 @@ namespace OrbitWindows {
             };
             double scale = size / 32.0;
 
-            // Full Pitch-Black Minimalist Squircle Background (#000000)
             var bgSquircle = new System.Windows.Shapes.Rectangle {
                 Width = size,
                 Height = size,
-                RadiusX = 8 * scale,
-                RadiusY = 8 * scale,
+                RadiusX = 7 * scale,
+                RadiusY = 7 * scale,
                 Fill = Brushes.Black
             };
             c.Children.Add(bgSquircle);
 
-            // Razor Subtle Orbital Track (#26262B)
-            var ring = new Ellipse {
-                Width = 20 * scale,
-                Height = 20 * scale,
-                Stroke = new SolidColorBrush(Color.FromRgb(38, 38, 43)),
-                StrokeThickness = Math.Max(0.9, 1.2 * scale)
+            var planet = new Ellipse {
+                Width = 14 * scale,
+                Height = 14 * scale,
+                Fill = new LinearGradientBrush(
+                    Color.FromRgb(255, 167, 38),
+                    Color.FromRgb(230, 81, 0),
+                    new Point(0.2, 0.1),
+                    new Point(0.8, 0.9)
+                )
             };
-            Canvas.SetLeft(ring, 6 * scale);
-            Canvas.SetTop(ring, 6 * scale);
+            Canvas.SetLeft(planet, 9 * scale);
+            Canvas.SetTop(planet, 9 * scale);
+            c.Children.Add(planet);
+
+            var ring = new Ellipse {
+                Width = 26 * scale,
+                Height = 8 * scale,
+                Stroke = new LinearGradientBrush(
+                    Color.FromRgb(255, 109, 0),
+                    Color.FromRgb(255, 183, 77),
+                    new Point(0, 0),
+                    new Point(1, 1)
+                ),
+                StrokeThickness = 2.2 * scale,
+                RenderTransform = new RotateTransform(-28, 13 * scale, 4 * scale)
+            };
+            Canvas.SetLeft(ring, 3 * scale);
+            Canvas.SetTop(ring, 12 * scale);
             c.Children.Add(ring);
 
-            // Radiant Electric Indigo Accent Arc (#6366F1)
-            var arcGeom = new PathGeometry();
-            var arcFig = new PathFigure {
-                StartPoint = new Point(16 * scale, 6 * scale),
-                IsClosed = false
+            var moon = new Ellipse {
+                Width = 4.2 * scale,
+                Height = 4.2 * scale,
+                Fill = new SolidColorBrush(Color.FromRgb(255, 167, 38))
             };
-            arcFig.Segments.Add(new ArcSegment(
-                new Point(26 * scale, 16 * scale),
-                new System.Windows.Size(10 * scale, 10 * scale),
-                0, false, SweepDirection.Clockwise, true));
-            arcGeom.Figures.Add(arcFig);
-
-            var arcPath = new System.Windows.Shapes.Path {
-                Data = arcGeom,
-                Stroke = new SolidColorBrush(Color.FromRgb(99, 102, 241)),
-                StrokeThickness = Math.Max(1.2, 1.8 * scale),
-                StrokeStartLineCap = PenLineCap.Round,
-                StrokeEndLineCap = PenLineCap.Round
-            };
-            c.Children.Add(arcPath);
-
-            // Solid White Minimalist Central Core (#FFFFFF)
-            var core = new Ellipse {
-                Width = 5.6 * scale,
-                Height = 5.6 * scale,
-                Fill = Brushes.White
-            };
-            Canvas.SetLeft(core, 13.2 * scale);
-            Canvas.SetTop(core, 13.2 * scale);
-            c.Children.Add(core);
-
-            // Light Indigo Orbiting Satellite Node (#818CF8)
-            var sat = new Ellipse {
-                Width = 3.6 * scale,
-                Height = 3.6 * scale,
-                Fill = new SolidColorBrush(Color.FromRgb(129, 140, 248))
-            };
-            Canvas.SetLeft(sat, 21.2 * scale);
-            Canvas.SetTop(sat, 6.8 * scale);
-            c.Children.Add(sat);
+            Canvas.SetLeft(moon, 22 * scale);
+            Canvas.SetTop(moon, 7 * scale);
+            c.Children.Add(moon);
 
             return c;
         }
     }
-
-    // === FLUENT RESULT TOAST CARD ===
-    public class OrbitToastWindow : Window {
+    // === FLUENT SATURN RESULT TOAST CARD (PURE BLACK THEME) ===
+    public class SaturnToastWindow : Window {
         private TextBlock titleText;
         private TextBlock descText;
         private System.Windows.Controls.Button btnOpen;
@@ -262,24 +281,24 @@ namespace OrbitWindows {
         private string targetPath;
         private System.Windows.Threading.DispatcherTimer dismissTimer;
 
-        public OrbitToastWindow() {
+        public SaturnToastWindow() {
             WindowStyle = WindowStyle.None;
             AllowsTransparency = true;
             Background = Brushes.Transparent;
             Topmost = true;
             ShowInTaskbar = false;
-            Width = 340;
-            Height = 110;
+            Width = 350;
+            Height = 114;
 
             var card = new Border {
-                Background = new SolidColorBrush(Color.FromArgb(245, 15, 23, 42)), // Deep obsidian slate
+                Background = new SolidColorBrush(Color.FromArgb(252, 0, 0, 0)), // Pure Pitch Black (#000000)
                 CornerRadius = new CornerRadius(14),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(120, 99, 102, 241)), // Indigo rim
-                BorderThickness = new Thickness(1.5),
-                Padding = new Thickness(14, 12, 14, 12),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(220, 36, 36, 40)), // Sleek Dark Obsidian Rim
+                BorderThickness = new Thickness(1.2),
+                Padding = new Thickness(15, 13, 15, 13),
                 Effect = new DropShadowEffect {
-                    BlurRadius = 24,
-                    Opacity = 0.45,
+                    BlurRadius = 32,
+                    Opacity = 0.75,
                     ShadowDepth = 6,
                     Color = Color.FromRgb(0, 0, 0)
                 }
@@ -292,14 +311,14 @@ namespace OrbitWindows {
             topRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
 
             var titleStack = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            titleStack.Children.Add(OrbitLogo.CreateVector(18, true));
+            titleStack.Children.Add(SaturnLogo.CreateVector(19, true));
 
             titleText = new TextBlock {
                 Text = "Action Completed",
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
-                Foreground = new SolidColorBrush(Color.FromRgb(129, 140, 248)), // Neon light indigo
-                Margin = new Thickness(8, 0, 0, 0),
+                Foreground = new SolidColorBrush(Color.FromRgb(255, 140, 0)), // Radiant Saturn Gold/Orange
+                Margin = new Thickness(9, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center
             };
             titleStack.Children.Add(titleText);
@@ -309,10 +328,13 @@ namespace OrbitWindows {
             var closeBtn = new TextBlock {
                 Text = "✕",
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184)),
+                Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 128)),
                 Cursor = System.Windows.Input.Cursors.Hand,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center
             };
+            closeBtn.MouseEnter += (s, e) => closeBtn.Foreground = Brushes.White;
+            closeBtn.MouseLeave += (s, e) => closeBtn.Foreground = new SolidColorBrush(Color.FromRgb(120, 120, 128));
             closeBtn.MouseDown += (s, e) => FadeOutAndHide();
             Grid.SetColumn(closeBtn, 1);
             topRow.Children.Add(closeBtn);
@@ -322,8 +344,8 @@ namespace OrbitWindows {
             descText = new TextBlock {
                 Text = "Saved output file.",
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
-                Margin = new Thickness(0, 4, 0, 8),
+                Foreground = new SolidColorBrush(Color.FromRgb(215, 215, 220)),
+                Margin = new Thickness(0, 5, 0, 9),
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
             rootStack.Children.Add(descText);
@@ -332,12 +354,12 @@ namespace OrbitWindows {
 
             btnOpen = new System.Windows.Controls.Button {
                 Content = "Open File",
-                Padding = new Thickness(10, 3, 10, 3),
+                Padding = new Thickness(12, 4, 12, 4),
                 Margin = new Thickness(0, 0, 8, 0),
-                Background = new SolidColorBrush(Color.FromRgb(99, 102, 241)),
+                Background = new SolidColorBrush(Color.FromRgb(255, 122, 0)), // Saturn Radiant Orange
                 Foreground = Brushes.White,
                 FontWeight = FontWeights.SemiBold,
-                FontSize = 10,
+                FontSize = 10.5,
                 BorderThickness = new Thickness(0),
                 Cursor = System.Windows.Input.Cursors.Hand
             };
@@ -347,7 +369,7 @@ namespace OrbitWindows {
                         Process.Start(new ProcessStartInfo(targetPath) { UseShellExecute = true });
                     }
                 } catch (Exception ex) {
-                    OrbitLog.LogException("btnOpen.Click", ex);
+                    SaturnLog.LogException("btnOpen.Click", ex);
                 }
                 FadeOutAndHide();
             };
@@ -355,11 +377,12 @@ namespace OrbitWindows {
 
             btnReveal = new System.Windows.Controls.Button {
                 Content = "Show in Folder",
-                Padding = new Thickness(10, 3, 10, 3),
-                Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
-                Foreground = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
-                FontSize = 10,
-                BorderThickness = new Thickness(0),
+                Padding = new Thickness(12, 4, 12, 4),
+                Background = new SolidColorBrush(Color.FromArgb(255, 24, 24, 27)), // Obsidian black
+                BorderBrush = new SolidColorBrush(Color.FromArgb(255, 52, 52, 58)),
+                BorderThickness = new Thickness(1),
+                Foreground = new SolidColorBrush(Color.FromRgb(220, 220, 225)),
+                FontSize = 10.5,
                 Cursor = System.Windows.Input.Cursors.Hand
             };
             btnReveal.Click += (s, e) => {
@@ -368,7 +391,7 @@ namespace OrbitWindows {
                         Process.Start("explorer.exe", string.Format("/select,\"{0}\"", targetPath));
                     }
                 } catch (Exception ex) {
-                    OrbitLog.LogException("btnReveal.Click", ex);
+                    SaturnLog.LogException("btnReveal.Click", ex);
                 }
                 FadeOutAndHide();
             };
@@ -389,7 +412,7 @@ namespace OrbitWindows {
             bool isError = title.Contains("✕") || title.ToLower().Contains("fail") || title.ToLower().Contains("error");
             titleText.Foreground = isError
                 ? new SolidColorBrush(Color.FromRgb(248, 113, 113))
-                : new SolidColorBrush(Color.FromRgb(129, 140, 248));
+                : new SolidColorBrush(Color.FromRgb(255, 140, 0));
             titleText.Text = title;
             descText.Text = details;
             targetPath = path;
@@ -415,15 +438,13 @@ namespace OrbitWindows {
         }
 
         private void FadeOutAndHide() {
-            dismissTimer.Stop();
-            var fadeOut = new DoubleAnimation(Opacity, 0.0, TimeSpan.FromMilliseconds(140)) {
+            var fadeOut = new DoubleAnimation(Opacity, 0.0, TimeSpan.FromMilliseconds(200)) {
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
             };
             fadeOut.Completed += (s, e) => Hide();
             BeginAnimation(OpacityProperty, fadeOut);
         }
     }
-
     // === SMOOTH FULLSCREEN DISMISSIBLE RADIAL OVERLAY ===
     public class RadialWheelWindow : Window {
         private Canvas rootCanvas;
@@ -529,15 +550,15 @@ namespace OrbitWindows {
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center
             };
 
-            var hubLogo = OrbitLogo.CreateVector(20, true);
+            var hubLogo = SaturnLogo.CreateVector(20, true);
             hubLogo.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
             hubLogo.Margin = new Thickness(0, 0, 0, 2);
 
             hubBadge = new TextBlock {
-                Text = "ORBIT",
+                Text = "SATURN",
                 FontWeight = FontWeights.ExtraBold,
                 FontSize = 8.5,
-                Foreground = new SolidColorBrush(Color.FromRgb(129, 140, 248)),
+                Foreground = new SolidColorBrush(Color.FromRgb(255, 140, 0)),
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center
             };
 
@@ -707,7 +728,7 @@ namespace OrbitWindows {
             petalSubs.Clear();
 
             string ext = !string.IsNullOrEmpty(filePath) ? Path.GetExtension(filePath).ToLower().Replace(".", "") : "jpg";
-            currentItems = OrbitCatalog.GetPetalsForExtension(ext, mode);
+            currentItems = SaturnCatalog.GetPetalsForExtension(ext, mode);
             currentHoverIndex = -1;
 
             double cx = 180;
@@ -857,7 +878,7 @@ namespace OrbitWindows {
                 hubActionName.Text = currentItems.Count > 0 ? currentItems[0].Title : "ACTION";
                 hubFileName.Text = fn.Length > 11 ? fn.Substring(0, 9) + ".." : fn;
             } else {
-                hubBadge.Text = "ORBIT";
+                hubBadge.Text = "SATURN";
                 hubActionName.Text = "BROWSE";
                 hubFileName.Text = "Click to pick";
             }
@@ -925,7 +946,7 @@ namespace OrbitWindows {
             string fileToProcess = ActiveFilePath;
             if (string.IsNullOrEmpty(fileToProcess) || !File.Exists(fileToProcess)) {
                 var ofd = new OpenFileDialog {
-                    Title = "Orbit: Select File to " + action.Title
+                    Title = "Saturn: Select File to " + action.Title
                 };
                 if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK) {
                     fileToProcess = ofd.FileName;
@@ -941,7 +962,7 @@ namespace OrbitWindows {
 
         private void BrowseForFileAndOpen() {
             var ofd = new OpenFileDialog {
-                Title = "Orbit: Choose File"
+                Title = "Saturn: Choose File"
             };
             if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK) {
                 ActiveFilePath = ofd.FileName;
@@ -984,7 +1005,7 @@ namespace OrbitWindows {
     }
 
     // === ORBIT CATALOG (CATEGORIES & TOOLS & ACTIONS) ===
-    public static class OrbitCatalog {
+    public static class SaturnCatalog {
         public static List<PetalAction> GetPetalsForExtension(string ext, string mode) {
             var list = new List<PetalAction>();
 
@@ -1103,7 +1124,7 @@ namespace OrbitWindows {
         private StackPanel listPanel;
 
         public FloatingShelfWindow() {
-            Title = "Orbit Pinned Shelf";
+            Title = "Saturn Pinned Shelf";
             Width = 270;
             Height = 340;
             Topmost = true;
@@ -1124,9 +1145,9 @@ namespace OrbitWindows {
                 Padding = new Thickness(12, 10, 12, 10)
             };
             var headerStack = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            headerStack.Children.Add(OrbitLogo.CreateVector(18, true));
+            headerStack.Children.Add(SaturnLogo.CreateVector(18, true));
             var title = new TextBlock {
-                Text = "Orbit Float Shelf",
+                Text = "Saturn Float Shelf",
                 FontWeight = FontWeights.Bold,
                 Foreground = new SolidColorBrush(Color.FromRgb(226, 232, 240)),
                 FontSize = 12,
@@ -1193,13 +1214,13 @@ namespace OrbitWindows {
     }
 
     // === SELF-HEALING DIAGNOSTIC & ERROR LOGGER ===
-    public static class OrbitLog {
+    public static class SaturnLog {
         private static readonly object lockObj = new object();
 
         public static void Write(string category, string message) {
             try {
-                string dir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
-                string logFile = Path.Combine(dir, "orbit_debug.log");
+                string dir = AppDomain.CurrentDomain.BaseDirectory;
+                string logFile = Path.Combine(dir, "saturn_debug.log");
 
                 lock (lockObj) {
                     if (File.Exists(logFile) && new FileInfo(logFile).Length > 1024 * 1024) {
@@ -1222,7 +1243,7 @@ namespace OrbitWindows {
     }
 
     // === CORE REAL CONVERSION & TOOLS ENGINE ===
-    public static class OrbitEngine {
+    public static class SaturnEngine {
         public static string FindFfmpeg() {
             try {
                 string appDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
@@ -1267,7 +1288,7 @@ namespace OrbitWindows {
         public static bool RunFfmpeg(string args, int timeoutMs = 120000) {
             string ffmpeg = FindFfmpeg();
             if (string.IsNullOrEmpty(ffmpeg) || !File.Exists(ffmpeg)) {
-                OrbitLog.Write("FFMPEG", "FFmpeg executable not found. Command was: " + args);
+                SaturnLog.Write("FFMPEG", "FFmpeg executable not found. Command was: " + args);
                 return false;
             }
 
@@ -1285,17 +1306,17 @@ namespace OrbitWindows {
                     bool exited = p.WaitForExit(timeoutMs);
                     if (!exited) {
                         try { p.Kill(); } catch { }
-                        OrbitLog.Write("FFMPEG", "FFmpeg command timed out after " + timeoutMs + "ms: " + args);
+                        SaturnLog.Write("FFMPEG", "FFmpeg command timed out after " + timeoutMs + "ms: " + args);
                         return false;
                     }
                     if (p.ExitCode != 0) {
-                        OrbitLog.Write("FFMPEG", "FFmpeg error (ExitCode " + p.ExitCode + "): " + err);
+                        SaturnLog.Write("FFMPEG", "FFmpeg error (ExitCode " + p.ExitCode + "): " + err);
                         return false;
                     }
                     return true;
                 }
             } catch (Exception ex) {
-                OrbitLog.LogException("RunFfmpeg", ex);
+                SaturnLog.LogException("RunFfmpeg", ex);
                 return false;
             }
         }
@@ -1311,7 +1332,7 @@ namespace OrbitWindows {
                 }
             } catch {
                 // If native GDI+ fails (e.g. WebP, AVIF, HEIC, CMYK, corrupted EXIF), decode via FFmpeg!
-                string tempPng = Path.Combine(Path.GetTempPath(), "orbit_decode_" + Guid.NewGuid().ToString("N") + ".png");
+                string tempPng = Path.Combine(Path.GetTempPath(), "saturn_decode_" + Guid.NewGuid().ToString("N") + ".png");
                 try {
                     if (RunFfmpeg(string.Format("-i \"{0}\" \"{1}\"", imagePath, tempPng)) && File.Exists(tempPng)) {
                         using (var fs = new FileStream(tempPng, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
@@ -1321,7 +1342,7 @@ namespace OrbitWindows {
                         }
                     }
                 } catch (Exception ex) {
-                    OrbitLog.LogException("LoadAnyImageSafely.FFmpegFallback", ex);
+                    SaturnLog.LogException("LoadAnyImageSafely.FFmpegFallback", ex);
                 } finally {
                     try { if (File.Exists(tempPng)) File.Delete(tempPng); } catch { }
                 }
@@ -1367,7 +1388,7 @@ namespace OrbitWindows {
             string srcExt = Path.GetExtension(srcPath).ToLower().TrimStart('.');
             targetExt = targetExt.ToLower().TrimStart('.');
 
-            string outPath = customOutPath ?? GetAvailableOutputPath(Path.Combine(dir, baseName + "_orbit." + targetExt));
+            string outPath = customOutPath ?? GetAvailableOutputPath(Path.Combine(dir, baseName + "_saturn." + targetExt));
 
             // 1. IMAGE CONVERSIONS
             if (IsImageFormat(srcExt)) {
@@ -1390,7 +1411,7 @@ namespace OrbitWindows {
                         return outPath;
                     }
                     // Fallback to high-quality PNG if libwebp encoder is missing
-                    string fallbackPng = GetAvailableOutputPath(Path.Combine(dir, baseName + "_orbit.png"));
+                    string fallbackPng = GetAvailableOutputPath(Path.Combine(dir, baseName + "_saturn.png"));
                     using (var bmp = LoadAnyImageSafely(srcPath)) {
                         SafeSaveBitmap(bmp, fallbackPng, "png", 92L);
                         return fallbackPng;
@@ -2773,33 +2794,37 @@ namespace OrbitWindows {
     }
 
     // === APPLICATION CONTROLLER ===
-    public class OrbitApp {
+    public class SaturnApp {
         private NotifyIcon trayIcon;
         private RadialWheelWindow wheelWindow;
         private FloatingShelfWindow shelfWindow;
-        private OrbitToastWindow toastWindow;
+        private SaturnToastWindow toastWindow;
         private Thread hotkeyThread;
         private bool isRunning = true;
         private double dpiScale = 1.0;
         private volatile bool isWheelOpen = false;
 
         public void Run(string initialFile = null) {
+            SaturnLog.Write("RUN", "Run started");
             Win32.SetProcessDPIAware();
             CalculateDpiScale();
             SoundFX.Init();
 
+            SaturnLog.Write("RUN", "Creating windows...");
             wheelWindow = new RadialWheelWindow();
             shelfWindow = new FloatingShelfWindow();
-            toastWindow = new OrbitToastWindow();
+            toastWindow = new SaturnToastWindow();
             wheelWindow.OnPetalChosen = HandleRealAction;
             wheelWindow.OnWheelClosed = () => { isWheelOpen = false; };
 
+            SaturnLog.Write("RUN", "Setting up tray icon and listeners...");
             SetupTrayIcon();
             RegisterShellContextMenu();
             StartNamedPipeListener();
 
             hotkeyThread = new Thread(DedicatedHotkeyListener) { IsBackground = true };
             hotkeyThread.Start();
+            SaturnLog.Write("RUN", "Run completed successfully, background listeners active.");
 
             if (!string.IsNullOrEmpty(initialFile) && File.Exists(initialFile)) {
                 OpenDialForPath(initialFile, "convert");
@@ -2810,30 +2835,30 @@ namespace OrbitWindows {
             Icon iconObj = SystemIcons.Application;
             try {
                 string exeDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
-                string icoPath = Path.Combine(exeDir, "Orbit.ico");
+                string icoPath = Path.Combine(exeDir, "Saturn.ico");
                 if (File.Exists(icoPath)) {
                     iconObj = new Icon(icoPath);
                 }
             } catch { }
 
             trayIcon = new NotifyIcon {
-                Text = "Orbit for Windows (F8)",
+                Text = "Saturn for Windows (F8)",
                 Visible = true,
                 Icon = iconObj
             };
 
             var menu = new ContextMenuStrip();
-            var header = menu.Items.Add("Orbit for Windows");
+            var header = menu.Items.Add("Saturn for Windows");
             header.Font = new System.Drawing.Font(menu.Font, System.Drawing.FontStyle.Bold);
             header.Enabled = false;
 
             menu.Items.Add("-");
-            menu.Items.Add("🎯 Open Orbit for Selected File (F8)", null, (s, e) => OpenDialForSelected("convert"));
+            menu.Items.Add("🪐 Open Saturn for Selected File (F8)", null, (s, e) => OpenDialForSelected("convert"));
             menu.Items.Add("⚡ Open Tools Wheel (Ctrl+F8)", null, (s, e) => OpenDialForSelected("tools"));
             menu.Items.Add("📌 Open Actions Wheel (Alt+F8)", null, (s, e) => OpenDialForSelected("actions"));
             menu.Items.Add("-");
-            menu.Items.Add("📂 Choose File to Orbit...", null, (s, e) => {
-                var ofd = new OpenFileDialog { Title = "Select File for Orbit" };
+            menu.Items.Add("📂 Choose File to Convert...", null, (s, e) => {
+                var ofd = new OpenFileDialog { Title = "Select File for Saturn" };
                 if (ofd.ShowDialog() == DialogResult.OK) {
                     OpenDialForPath(ofd.FileName, "convert");
                 }
@@ -2844,10 +2869,10 @@ namespace OrbitWindows {
             });
             menu.Items.Add("🔧 Register Windows Right-Click Menu", null, (s, e) => {
                 RegisterShellContextMenu();
-                MessageBox.Show("Orbit has been added to your Windows Right-Click Context Menu!\nRight-click any file to Orbit it.", "Orbit Setup", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Orbit has been added to your Windows Right-Click Context Menu!\nRight-click any file to Orbit it.", "Saturn Setup", MessageBoxButton.OK, MessageBoxImage.Information);
             });
             menu.Items.Add("-");
-            menu.Items.Add("❌ Exit Orbit", null, (s, e) => {
+            menu.Items.Add("❌ Exit Saturn", null, (s, e) => {
                 isRunning = false;
                 trayIcon.Visible = false;
                 Application.Current.Shutdown();
@@ -2856,15 +2881,15 @@ namespace OrbitWindows {
             trayIcon.ContextMenuStrip = menu;
             trayIcon.DoubleClick += (s, e) => OpenDialForSelected("convert");
 
-            trayIcon.ShowBalloonTip(3000, "Orbit is Ready", "Select any file in Explorer or Desktop and press F8 to Orbit!\nOr right-click any file in Windows.", ToolTipIcon.Info);
+            trayIcon.ShowBalloonTip(3000, "Saturn is Ready", "Select any file in Explorer or Desktop and press F8 to Orbit!\nOr right-click any file in Windows.", ToolTipIcon.Info);
         }
 
         private void RegisterShellContextMenu() {
             try {
                 string exePath = Process.GetCurrentProcess().MainModule.FileName;
-                using (var key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\*\shell\Orbit")) {
+                using (var key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\*\shell\Saturn")) {
                     if (key != null) {
-                        key.SetValue("", "Orbit Quick Tools");
+                        key.SetValue("", "Saturn Quick Tools");
                         key.SetValue("Icon", "\"" + exePath + "\",0");
                         using (var cmd = key.CreateSubKey("command")) {
                             if (cmd != null) {
@@ -2880,7 +2905,7 @@ namespace OrbitWindows {
             new Thread(() => {
                 while (isRunning) {
                     try {
-                        using (var server = new NamedPipeServerStream("Orbit_SingleInstance_Pipe", PipeDirection.In)) {
+                        using (var server = new NamedPipeServerStream("Saturn_SingleInstance_Pipe", PipeDirection.In)) {
                             server.WaitForConnection();
                             using (var reader = new StreamReader(server)) {
                                 string filePath = reader.ReadLine();
@@ -3093,13 +3118,13 @@ namespace OrbitWindows {
                             WorkingDirectory = dir
                         });
                     } else if (action.ExtOrId == "duplicate") {
-                        string dupPath = OrbitEngine.GetAvailableOutputPath(Path.Combine(dir, baseName + "_copy" + ext));
+                        string dupPath = SaturnEngine.GetAvailableOutputPath(Path.Combine(dir, baseName + "_copy" + ext));
                         File.Copy(filePath, dupPath, true);
                         SoundFX.PlayChime();
                         toastWindow.ShowResult("✓ File Duplicated", Path.GetFileName(dupPath), dupPath);
                     }
                 } catch (Exception ex) {
-                    OrbitLog.LogException("HandleRealAction." + action.ExtOrId, ex);
+                    SaturnLog.LogException("HandleRealAction." + action.ExtOrId, ex);
                 }
                 return;
             }
@@ -3111,10 +3136,10 @@ namespace OrbitWindows {
                     string title = "";
 
                     if (action.Mode == "tool") {
-                        resultPath = OrbitEngine.ExecuteTool(filePath, action.ExtOrId);
+                        resultPath = SaturnEngine.ExecuteTool(filePath, action.ExtOrId);
                         title = "✓ " + action.Title;
                     } else {
-                        resultPath = OrbitEngine.ExecuteConversion(filePath, action.ExtOrId);
+                        resultPath = SaturnEngine.ExecuteConversion(filePath, action.ExtOrId);
                         title = "✓ Converted to " + action.ExtOrId.ToUpper();
                     }
 
@@ -3125,7 +3150,7 @@ namespace OrbitWindows {
                         });
                     }
                 } catch (Exception ex) {
-                    OrbitLog.LogException("HandleRealAction." + action.ExtOrId, ex);
+                    SaturnLog.LogException("HandleRealAction." + action.ExtOrId, ex);
                     if (Application.Current != null && Application.Current.Dispatcher != null) {
                         Application.Current.Dispatcher.Invoke(() => {
                             toastWindow.ShowResult("✕ Action Failed", ex.Message, null);
@@ -3145,8 +3170,8 @@ namespace OrbitWindows {
                 string src = args[1];
                 string target = args[3];
                 try {
-                    Console.WriteLine("Orbit CLI: Converting {0} to {1}...", src, target);
-                    string res = OrbitEngine.ExecuteConversion(src, target);
+                    Console.WriteLine("Saturn CLI: Converting {0} to {1}...", src, target);
+                    string res = SaturnEngine.ExecuteConversion(src, target);
                     Console.WriteLine("SUCCESS: {0}", res);
                 } catch (Exception ex) {
                     Console.WriteLine("ERROR: {0}", ex.Message);
@@ -3160,8 +3185,8 @@ namespace OrbitWindows {
                 string src = args[1];
                 string toolId = args[3];
                 try {
-                    Console.WriteLine("Orbit CLI: Running tool {0} on {1}...", toolId, src);
-                    string res = OrbitEngine.ExecuteTool(src, toolId);
+                    Console.WriteLine("Saturn CLI: Running tool {0} on {1}...", toolId, src);
+                    string res = SaturnEngine.ExecuteTool(src, toolId);
                     Console.WriteLine("SUCCESS: {0}", res);
                 } catch (Exception ex) {
                     Console.WriteLine("ERROR: {0}", ex.Message);
@@ -3171,6 +3196,7 @@ namespace OrbitWindows {
             }
 
             Process current = Process.GetCurrentProcess();
+            SaturnLog.Write("STARTUP", "PID " + current.Id + " started, args: " + string.Join(" ", args));
             bool hasOtherInstance = false;
             foreach (var p in Process.GetProcessesByName(current.ProcessName)) {
                 if (p.Id != current.Id) {
@@ -3182,7 +3208,7 @@ namespace OrbitWindows {
             if (hasOtherInstance) {
                 string targetFile = (args.Length > 0) ? args[0] : "";
                 try {
-                    using (var client = new NamedPipeClientStream(".", "Orbit_SingleInstance_Pipe", PipeDirection.Out)) {
+                    using (var client = new NamedPipeClientStream(".", "Saturn_SingleInstance_Pipe", PipeDirection.Out)) {
                         client.Connect(800);
                         using (var writer = new StreamWriter(client)) {
                             writer.WriteLine(targetFile);
@@ -3199,10 +3225,10 @@ namespace OrbitWindows {
             try {
                 // Global Crash Prevention & Self-Healing Handlers
                 AppDomain.CurrentDomain.UnhandledException += (s, e) => {
-                    OrbitLog.LogException("AppDomain.UnhandledException", e.ExceptionObject as Exception);
+                    SaturnLog.LogException("AppDomain.UnhandledException", e.ExceptionObject as Exception);
                 };
                 System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (s, e) => {
-                    OrbitLog.LogException("TaskScheduler.UnobservedTaskException", e.Exception);
+                    SaturnLog.LogException("TaskScheduler.UnobservedTaskException", e.Exception);
                     e.SetObserved(); // Suppresses crash
                 };
 
@@ -3214,17 +3240,17 @@ namespace OrbitWindows {
 
                 var app = new Application();
                 app.DispatcherUnhandledException += (s, e) => {
-                    OrbitLog.LogException("DispatcherUnhandledException", e.Exception);
+                    SaturnLog.LogException("DispatcherUnhandledException", e.Exception);
                     e.Handled = true; // Suppresses UI crash and keeps app alive
                 };
 
                 app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-                var orbit = new OrbitApp();
+                var orbit = new SaturnApp();
                 string initialArg = (args.Length > 0) ? args[0] : null;
                 orbit.Run(initialArg);
                 app.Run();
             } catch (Exception ex) {
-                OrbitLog.LogException("Program.Main", ex);
+                SaturnLog.LogException("Program.Main", ex);
             }
         }
     }

@@ -1,4 +1,4 @@
-name: Build Orbit for Windows
+name: Build Saturn for Windows
 
 on:
   push:
@@ -15,7 +15,7 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Compile Orbit Standalone Binary
+    - name: Compile Saturn Standalone Binary
       shell: powershell
       run: |
         powershell -ExecutionPolicy Bypass -File .\build.ps1
@@ -23,16 +23,16 @@ jobs:
     - name: Verify Executable Generated
       shell: powershell
       run: |
-        if (-not (Test-Path "Orbit.exe")) {
-            Write-Error "Orbit.exe was not generated."
+        if (-not (Test-Path "Saturn.exe")) {
+            Write-Error "Saturn.exe was not generated."
             exit 1
         }
-        $item = Get-Item "Orbit.exe"
-        Write-Host "Successfully generated Orbit.exe ($([math]::Round($item.Length / 1KB, 2)) KB)"
+        $item = Get-Item "Saturn.exe"
+        Write-Host "Successfully generated Saturn.exe ($([math]::Round($item.Length / 1KB, 2)) KB)"
 
-    - name: Upload Orbit Executable Artifact
+    - name: Upload Saturn Executable Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Orbit-Windows-x64
-        path: Orbit.exe
+        name: Saturn-Windows-x64
+        path: Saturn.exe
         if-no-files-found: error
