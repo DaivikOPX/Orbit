@@ -1505,6 +1505,14 @@ namespace OrbitWindows {
                 } else if (targetExt == "txt") {
                     File.WriteAllText(outPath, xmlText, Encoding.UTF8);
                     return outPath;
+                } else if (targetExt == "md") {
+                    string json = XmlToJson(xmlText);
+                    File.WriteAllText(outPath, JsonToMarkdown(json), Encoding.UTF8);
+                    return outPath;
+                } else if (targetExt == "html" || targetExt == "htm") {
+                    string json = XmlToJson(xmlText);
+                    File.WriteAllText(outPath, JsonToHtml(json, baseName), Encoding.UTF8);
+                    return outPath;
                 }
             }
 
@@ -1515,7 +1523,7 @@ namespace OrbitWindows {
                     CreateTextPdf(content, outPath);
                     return outPath;
                 } else if (targetExt == "docx") {
-                    CreateTextDocx(content, outPath);
+                    CreateDocxWithContent(outPath, content, null);
                     return outPath;
                 } else if (targetExt == "html" || targetExt == "htm") {
                     File.WriteAllText(outPath, TextOrMdToHtml(content, baseName), Encoding.UTF8);
@@ -1525,7 +1533,8 @@ namespace OrbitWindows {
                     File.WriteAllText(outPath, plain, Encoding.UTF8);
                     return outPath;
                 } else if (targetExt == "md") {
-                    File.WriteAllText(outPath, content, Encoding.UTF8);
+                    string plain = srcExt.StartsWith("htm") ? StripHtml(content) : content;
+                    File.WriteAllText(outPath, plain, Encoding.UTF8);
                     return outPath;
                 }
             }
@@ -1539,16 +1548,49 @@ namespace OrbitWindows {
                     string txt = ExtractPdfRawText(srcPath);
                     CreateDocxWithContent(outPath, txt, images);
                     return outPath;
-                } else if (targetExt == "html") {
-                    string txt = ExtractPdfRawText(srcPath);
-                    File.WriteAllText(outPath, TextOrMdToHtml(txt, baseName), Encoding.UTF8);
+                } else if (targetExt == "html" || targetExt == "htm") {
+                    return PdfToHtml(srcPath, outPath);
+                } else if (targetExt == "md") {
+                    return PdfToMarkdown(srcPath, outPath);
+                } else if (targetExt == "png" || targetExt == "jpg" || targetExt == "jpeg") {
+                    var images = ExtractPdfImages(srcPath);
+                    if (images.Count > 0) {
+                        using (var ms = new MemoryStream(images[0])) {
+                            using (var bmp = new Bitmap(ms)) {
+                                SafeSaveBitmap(bmp, outPath, targetExt, 92L);
+                                return outPath;
+                            }
+                        }
+                    }
+                    throw new InvalidOperationException("No extractable raster images found in PDF.");
+                } else if (targetExt == "pdf") {
+                    File.Copy(srcPath, outPath, true);
                     return outPath;
                 }
             }
 
-            // Fallback: Copy if no converter applied
-            File.Copy(srcPath, outPath, true);
-            return outPath;
+            if (srcExt == "docx") {
+                if (targetExt == "txt") {
+                    return DocxToTxt(srcPath, outPath);
+                } else if (targetExt == "md") {
+                    return DocxToMarkdown(srcPath, outPath);
+                } else if (targetExt == "html" || targetExt == "htm") {
+                    return DocxToHtml(srcPath, outPath);
+                } else if (targetExt == "pdf") {
+                    return DocxToPdf(srcPath, outPath);
+                } else if (targetExt == "docx") {
+                    File.Copy(srcPath, outPath, true);
+                    return outPath;
+                }
+            }
+
+            // Fallback: only copy if identical format; otherwise reject invalid conversions
+            if (srcExt == targetExt) {
+                File.Copy(srcPath, outPath, true);
+                return outPath;
+            }
+
+            throw new NotSupportedException(string.Format("Conversion from .{0} to .{1} is not supported.", srcExt, targetExt));
         }
 
         public static string ExecuteTool(string srcPath, string toolId, string customOutPath = null) {
@@ -2247,6 +2289,200 @@ namespace OrbitWindows {
             string text = Regex.Replace(html, "<[^>]+>", " ");
             text = System.Net.WebUtility.HtmlDecode(text);
             return text.Trim();
+        }
+
+        public static string PdfToMarkdown(string pdfPath, string outMdPath) {
+            string baseDir = Path.GetDirectoryName(outMdPath);
+            string baseName = Path.GetFileNameWithoutExtension(outMdPath);
+            string txt = ExtractPdfRawText(pdfPath);
+            var images = ExtractPdfImages(pdfPath);
+
+            var sb = new StringBuilder();
+
+            if (images.Count > 0) {
+                for (int i = 0; i < images.Count; i++) {
+                    string imgFileName = string.Format("{0}_img{1}.jpg", baseName, i + 1);
+                    string imgFullPath = Path.Combine(baseDir, imgFileName);
+                    File.WriteAllBytes(imgFullPath, images[i]);
+                    sb.AppendLine(string.Format("![{0}]({1})", imgFileName, imgFileName));
+                    sb.AppendLine();
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(txt)) {
+                var lines = txt.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None);
+                bool isFirst = true;
+                foreach (var line in lines) {
+                    string t = line.Trim();
+                    if (string.IsNullOrEmpty(t)) continue;
+                    if (isFirst && images.Count == 0 && !t.StartsWith("#")) {
+                        sb.AppendLine("# " + t);
+                        sb.AppendLine();
+                        isFirst = false;
+                    } else {
+                        sb.AppendLine(t);
+                        sb.AppendLine();
+                    }
+                }
+            } else if (images.Count == 0) {
+                sb.AppendLine("# " + Path.GetFileNameWithoutExtension(pdfPath));
+                sb.AppendLine();
+                sb.AppendLine("*No readable text or images found in document.*");
+            }
+
+            string mdContent = sb.ToString().TrimEnd();
+            File.WriteAllText(outMdPath, mdContent, Encoding.UTF8);
+            return outMdPath;
+        }
+
+        public static string PdfToHtml(string pdfPath, string outHtmlPath) {
+            string baseDir = Path.GetDirectoryName(outHtmlPath);
+            string baseName = Path.GetFileNameWithoutExtension(outHtmlPath);
+            string txt = ExtractPdfRawText(pdfPath);
+            var images = ExtractPdfImages(pdfPath);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'>");
+            sb.AppendLine("<title>" + System.Security.SecurityElement.Escape(baseName) + "</title>");
+            sb.AppendLine("<style>");
+            sb.AppendLine("body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; margin: 0; line-height: 1.6; }");
+            sb.AppendLine(".container { max-width: 800px; margin: 0 auto; background: #1e293b; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }");
+            sb.AppendLine("h1, h2 { color: #818cf8; }");
+            sb.AppendLine("p { color: #cbd5e1; margin-bottom: 1rem; }");
+            sb.AppendLine("img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; display: block; }");
+            sb.AppendLine("</style></head><body><div class='container'>");
+
+            if (images.Count > 0) {
+                for (int i = 0; i < images.Count; i++) {
+                    string imgFileName = string.Format("{0}_img{1}.jpg", baseName, i + 1);
+                    string imgFullPath = Path.Combine(baseDir, imgFileName);
+                    File.WriteAllBytes(imgFullPath, images[i]);
+                    sb.AppendLine(string.Format("<img src='{0}' alt='{0}'/>", System.Security.SecurityElement.Escape(imgFileName)));
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(txt)) {
+                var lines = txt.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None);
+                foreach (var l in lines) {
+                    string t = l.Trim();
+                    if (string.IsNullOrEmpty(t)) continue;
+                    sb.AppendLine("<p>" + System.Security.SecurityElement.Escape(t) + "</p>");
+                }
+            }
+
+            sb.AppendLine("</div></body></html>");
+            File.WriteAllText(outHtmlPath, sb.ToString(), Encoding.UTF8);
+            return outHtmlPath;
+        }
+
+        public static string ExtractDocxText(string docxPath) {
+            try {
+                using (var fs = new FileStream(docxPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
+                    using (var zip = new ZipArchive(fs, ZipArchiveMode.Read)) {
+                        var entry = zip.GetEntry("word/document.xml");
+                        if (entry != null) {
+                            using (var reader = new StreamReader(entry.Open(), Encoding.UTF8)) {
+                                string xml = reader.ReadToEnd();
+                                var sb = new StringBuilder();
+                                var pMatches = Regex.Matches(xml, @"<w:p(?:\s[^>]*)?>.*?</w:p>", RegexOptions.Singleline);
+                                foreach (Match pm in pMatches) {
+                                    var tMatches = Regex.Matches(pm.Value, @"<w:t(?:\s[^>]*)?>(.*?)</w:t>", RegexOptions.Singleline);
+                                    var lineSb = new StringBuilder();
+                                    foreach (Match tm in tMatches) {
+                                        lineSb.Append(tm.Groups[1].Value);
+                                    }
+                                    string line = System.Net.WebUtility.HtmlDecode(lineSb.ToString()).Trim();
+                                    if (line.Length > 0) sb.AppendLine(line);
+                                }
+                                if (sb.Length > 0) return sb.ToString();
+                            }
+                        }
+                    }
+                }
+            } catch { }
+            return "";
+        }
+
+        public static List<byte[]> ExtractDocxImages(string docxPath) {
+            var list = new List<byte[]>();
+            try {
+                using (var fs = new FileStream(docxPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) {
+                    using (var zip = new ZipArchive(fs, ZipArchiveMode.Read)) {
+                        foreach (var entry in zip.Entries) {
+                            if (entry.FullName.StartsWith("word/media/", StringComparison.OrdinalIgnoreCase)) {
+                                using (var ms = new MemoryStream()) {
+                                    using (var s = entry.Open()) {
+                                        s.CopyTo(ms);
+                                    }
+                                    list.Add(ms.ToArray());
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch { }
+            return list;
+        }
+
+        public static string DocxToMarkdown(string docxPath, string outMdPath) {
+            string baseDir = Path.GetDirectoryName(outMdPath);
+            string baseName = Path.GetFileNameWithoutExtension(outMdPath);
+            string txt = ExtractDocxText(docxPath);
+            var images = ExtractDocxImages(docxPath);
+
+            var sb = new StringBuilder();
+            if (images.Count > 0) {
+                for (int i = 0; i < images.Count; i++) {
+                    string imgFileName = string.Format("{0}_img{1}.jpg", baseName, i + 1);
+                    string imgFullPath = Path.Combine(baseDir, imgFileName);
+                    File.WriteAllBytes(imgFullPath, images[i]);
+                    sb.AppendLine(string.Format("![{0}]({1})", imgFileName, imgFileName));
+                    sb.AppendLine();
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(txt)) {
+                var lines = txt.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None);
+                bool isFirst = true;
+                foreach (var line in lines) {
+                    string t = line.Trim();
+                    if (string.IsNullOrEmpty(t)) continue;
+                    if (isFirst && images.Count == 0 && !t.StartsWith("#")) {
+                        sb.AppendLine("# " + t);
+                        sb.AppendLine();
+                        isFirst = false;
+                    } else {
+                        sb.AppendLine(t);
+                        sb.AppendLine();
+                    }
+                }
+            } else if (images.Count == 0) {
+                sb.AppendLine("# " + Path.GetFileNameWithoutExtension(docxPath));
+                sb.AppendLine();
+                sb.AppendLine("*No readable text or images found in document.*");
+            }
+
+            File.WriteAllText(outMdPath, sb.ToString().TrimEnd(), Encoding.UTF8);
+            return outMdPath;
+        }
+
+        public static string DocxToHtml(string docxPath, string outHtmlPath) {
+            string txt = ExtractDocxText(docxPath);
+            string baseName = Path.GetFileNameWithoutExtension(docxPath);
+            File.WriteAllText(outHtmlPath, TextOrMdToHtml(txt, baseName), Encoding.UTF8);
+            return outHtmlPath;
+        }
+
+        public static string DocxToPdf(string docxPath, string outPdfPath) {
+            string txt = ExtractDocxText(docxPath);
+            CreateTextPdf(txt, outPdfPath);
+            return outPdfPath;
+        }
+
+        public static string DocxToTxt(string docxPath, string outTxtPath) {
+            string txt = ExtractDocxText(docxPath);
+            File.WriteAllText(outTxtPath, txt, Encoding.UTF8);
+            return outTxtPath;
         }
 
         public static List<byte[]> ExtractPdfImages(string pdfPath) {
