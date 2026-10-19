@@ -61,6 +61,16 @@ namespace SaturnWindows {
         [DllImport("user32.dll")]
         public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
+        [DllImport("user32.dll", ExactSpelling = true)]
+        public static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
+
+        [DllImport("user32.dll")]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        public const uint GA_PARENT = 1;
+        public const uint GA_ROOT = 2;
+        public const uint GA_ROOTOWNER = 3;
+
         [StructLayout(LayoutKind.Sequential)]
         public struct POINT {
             public int X;
@@ -639,10 +649,6 @@ namespace SaturnWindows {
                 }
             };
 
-            Deactivated += (s, e) => {
-                CloseWithAnimation();
-            };
-
             DragOver += (s, e) => {
                 e.Effects = System.Windows.DragDropEffects.Copy;
                 e.Handled = true;
@@ -670,8 +676,10 @@ namespace SaturnWindows {
         public void OpenWithBloom() {
             isClosing = false;
             Opacity = 1.0;
+            Topmost = true;
             Show();
             Activate();
+            Focus();
 
             // Smooth instantaneous 140ms bloom with Quartic ease-out
             var scaleAnimX = new DoubleAnimation(0.88, 1.0, TimeSpan.FromMilliseconds(140)) {
@@ -2869,7 +2877,7 @@ namespace SaturnWindows {
             });
             menu.Items.Add("🔧 Register Windows Right-Click Menu", null, (s, e) => {
                 RegisterShellContextMenu();
-                MessageBox.Show("Orbit has been added to your Windows Right-Click Context Menu!\nRight-click any file to Orbit it.", "Saturn Setup", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Saturn has been added to your Windows Right-Click Context Menu!\nRight-click any file or folder to use Saturn.", "Saturn Setup", MessageBoxButton.OK, MessageBoxImage.Information);
             });
             menu.Items.Add("-");
             menu.Items.Add("❌ Exit Saturn", null, (s, e) => {
@@ -2881,19 +2889,29 @@ namespace SaturnWindows {
             trayIcon.ContextMenuStrip = menu;
             trayIcon.DoubleClick += (s, e) => OpenDialForSelected("convert");
 
-            trayIcon.ShowBalloonTip(3000, "Saturn is Ready", "Select any file in Explorer or Desktop and press F8 to Orbit!\nOr right-click any file in Windows.", ToolTipIcon.Info);
+            trayIcon.ShowBalloonTip(3000, "Saturn is Ready", "Select any file in Explorer or Desktop and press F8 to activate Saturn!\nOr right-click any file in Windows.", ToolTipIcon.Info);
         }
 
         private void RegisterShellContextMenu() {
             try {
                 string exePath = Process.GetCurrentProcess().MainModule.FileName;
-                using (var key = Registry.CurrentUser.CreateSubKey(@"Software\Classes\*\shell\Saturn")) {
-                    if (key != null) {
-                        key.SetValue("", "Saturn Quick Tools");
-                        key.SetValue("Icon", "\"" + exePath + "\",0");
-                        using (var cmd = key.CreateSubKey("command")) {
-                            if (cmd != null) {
-                                cmd.SetValue("", "\"" + exePath + "\" \"%1\"");
+                string[] subKeys = new string[] {
+                    @"Software\Classes\*\shell\Saturn",
+                    @"Software\Classes\Directory\shell\Saturn",
+                    @"Software\Classes\Directory\Background\shell\Saturn",
+                    @"Software\Classes\Drive\shell\Saturn"
+                };
+
+                foreach (var subKey in subKeys) {
+                    using (var key = Registry.CurrentUser.CreateSubKey(subKey)) {
+                        if (key != null) {
+                            key.SetValue("", "Saturn Quick Tools");
+                            key.SetValue("Icon", "\"" + exePath + "\",0");
+                            using (var cmd = key.CreateSubKey("command")) {
+                                if (cmd != null) {
+                                    string argParam = subKey.Contains("Background") ? "\"%V\"" : "\"%1\"";
+                                    cmd.SetValue("", "\"" + exePath + "\" " + argParam);
+                                }
                             }
                         }
                     }
@@ -2944,34 +2962,7 @@ namespace SaturnWindows {
         private void DedicatedHotkeyListener() {
             while (isRunning) {
                 try {
-                    Thread.Sleep(25);
-
-                    // If wheel is showing and user clicks outside, close immediately!
-                    if (isWheelOpen) {
-                        short lbtn = Win32.GetAsyncKeyState(Win32.VK_LBUTTON);
-                        if ((lbtn & 0x8000) != 0) {
-                            Application.Current.Dispatcher.Invoke(() => {
-                                try {
-                                    if (wheelWindow != null && wheelWindow.IsVisible) {
-                                        Win32.POINT pt;
-                                        Win32.GetCursorPos(out pt);
-                                        double dipX = pt.X / dpiScale;
-                                        double dipY = pt.Y / dpiScale;
-                                        double wheelLeft = Canvas.GetLeft(wheelWindow.WheelCanvas);
-                                        double wheelTop = Canvas.GetTop(wheelWindow.WheelCanvas);
-                                        double wheelCenterX = wheelLeft + 180;
-                                        double wheelCenterY = wheelTop + 180;
-                                        double dist = Math.Sqrt(Math.Pow(dipX - wheelCenterX, 2) + Math.Pow(dipY - wheelCenterY, 2));
-                                        if (dist > 185) {
-                                            wheelWindow.CloseWithAnimation();
-                                            isWheelOpen = false;
-                                        }
-                                    }
-                                } catch { }
-                            });
-                            Thread.Sleep(150);
-                        }
-                    }
+                    Thread.Sleep(20);
 
                     short f8Key = Win32.GetAsyncKeyState(Win32.VK_F8);
                     short ctrlKey = Win32.GetAsyncKeyState(Win32.VK_CONTROL);
@@ -2982,12 +2973,20 @@ namespace SaturnWindows {
                     bool alt = (altKey & 0x8000) != 0;
 
                     if (f8) {
+                        if (isWheelOpen) {
+                            Application.Current.Dispatcher.Invoke(() => {
+                                wheelWindow.CloseWithAnimation();
+                            });
+                            Thread.Sleep(350);
+                            continue;
+                        }
+
                         string mode = "convert";
                         if (ctrl) mode = "tools";
                         else if (alt) mode = "actions";
 
                         OpenDialForSelected(mode);
-                        Thread.Sleep(450); // Debounce
+                        Thread.Sleep(400); // Debounce
                     }
                 } catch {
                     Thread.Sleep(50);
@@ -3017,74 +3016,112 @@ namespace SaturnWindows {
             });
         }
 
-        // Safely retrieves selected file from active Explorer window or Desktop
+        // Safely retrieves selected file from active Explorer window, tab, desktop, or clipboard
         private string TryGetSelectedFile() {
-            // 1. Shell COM automation
+            IntPtr fgHwnd = Win32.GetForegroundWindow();
+            IntPtr rootHwnd = (fgHwnd != IntPtr.Zero) ? Win32.GetAncestor(fgHwnd, Win32.GA_ROOT) : IntPtr.Zero;
+
+            // Strategy 1: Active Shell COM Automation (Matches both root window and tab handles)
             try {
-                IntPtr fgHwnd = Win32.GetForegroundWindow();
                 Type shellType = Type.GetTypeFromProgID("Shell.Application");
                 if (shellType != null) {
                     dynamic shell = Activator.CreateInstance(shellType);
-                    foreach (dynamic window in shell.Windows()) {
-                        try {
-                            if (window.HWND == (long)fgHwnd || fgHwnd == IntPtr.Zero) {
+                    dynamic windows = shell.Windows();
+                    if (windows != null) {
+                        // Pass 1: Strict match for current foreground/root window
+                        foreach (dynamic window in windows) {
+                            try {
+                                if (window == null) continue;
+                                long wHwnd = (long)window.HWND;
+                                bool isMatch = (wHwnd == rootHwnd.ToInt64() || wHwnd == fgHwnd.ToInt64() ||
+                                               (int)wHwnd == (int)rootHwnd || (int)wHwnd == (int)fgHwnd);
+                                if (isMatch) {
+                                    dynamic sel = window.Document.SelectedItems();
+                                    if (sel != null && sel.Count > 0) {
+                                        string p = sel.Item(0).Path;
+                                        if (File.Exists(p) || Directory.Exists(p)) return p;
+                                    }
+                                    try {
+                                        string folderPath = window.Document.Folder.Self.Path;
+                                        if (Directory.Exists(folderPath)) return folderPath;
+                                    } catch { }
+                                }
+                            } catch { }
+                        }
+
+                        // Pass 2: Check any Explorer tab that has selected files
+                        foreach (dynamic window in windows) {
+                            try {
+                                if (window == null) continue;
                                 dynamic sel = window.Document.SelectedItems();
                                 if (sel != null && sel.Count > 0) {
                                     string p = sel.Item(0).Path;
-                                    if (File.Exists(p)) return p;
+                                    if (File.Exists(p) || Directory.Exists(p)) return p;
                                 }
-                            }
-                        } catch { }
-                    }
-                    foreach (dynamic window in shell.Windows()) {
-                        try {
-                            dynamic sel = window.Document.SelectedItems();
-                            if (sel != null && sel.Count > 0) {
-                                string p = sel.Item(0).Path;
-                                if (File.Exists(p)) return p;
-                            }
-                        } catch { }
+                            } catch { }
+                        }
                     }
                 }
-            } catch { }
+            } catch (Exception ex) {
+                SaturnLog.LogException("TryGetSelectedFile.ShellCOM", ex);
+            }
 
-            // 2. Fallback: Query active selection by simulating Ctrl+C (works everywhere on Windows)
+            // Strategy 2: Physical Key Release + Clean Clipboard Simulation
             try {
+                // Ensure F8 physical key is released before sending Control+C
+                int waitCount = 0;
+                while ((Win32.GetAsyncKeyState(Win32.VK_F8) & 0x8000) != 0 && waitCount < 25) {
+                    Thread.Sleep(10);
+                    waitCount++;
+                }
+
+                // Preserve existing clipboard text in case it's a file path
+                string oldText = null;
+                try {
+                    if (System.Windows.Clipboard.ContainsText()) {
+                        oldText = System.Windows.Clipboard.GetText().Trim().Trim('\"', '\'');
+                    }
+                } catch { }
+
                 System.Windows.Clipboard.Clear();
                 Win32.keybd_event(0x11, 0, 0, UIntPtr.Zero); // VK_CONTROL down
                 Win32.keybd_event(0x43, 0, 0, UIntPtr.Zero); // VK_C down
-                Thread.Sleep(20);
+                Thread.Sleep(35);
                 Win32.keybd_event(0x43, 0, 2, UIntPtr.Zero); // VK_C up
                 Win32.keybd_event(0x11, 0, 2, UIntPtr.Zero); // VK_CONTROL up
-                Thread.Sleep(60);
 
-                if (System.Windows.Clipboard.ContainsFileDropList()) {
-                    var files = System.Windows.Clipboard.GetFileDropList();
-                    if (files != null && files.Count > 0 && File.Exists(files[0])) {
-                        return files[0];
+                // Wait up to 240ms for Explorer to populate FileDropList
+                for (int i = 0; i < 16; i++) {
+                    Thread.Sleep(15);
+                    if (System.Windows.Clipboard.ContainsFileDropList()) {
+                        var files = System.Windows.Clipboard.GetFileDropList();
+                        if (files != null && files.Count > 0) {
+                            string p = files[0];
+                            if (File.Exists(p) || Directory.Exists(p)) return p;
+                        }
                     }
                 }
-            } catch { }
 
-            // 3. Fallback: Pre-existing clipboard file drop list
-            try {
-                if (System.Windows.Clipboard.ContainsFileDropList()) {
-                    var files = System.Windows.Clipboard.GetFileDropList();
-                    if (files != null && files.Count > 0 && File.Exists(files[0])) {
-                        return files[0];
-                    }
+                // If no file drop list received, check if old clipboard was a valid file path
+                if (!string.IsNullOrEmpty(oldText) && (File.Exists(oldText) || Directory.Exists(oldText))) {
+                    return oldText;
                 }
-            } catch { }
+            } catch (Exception ex) {
+                SaturnLog.LogException("TryGetSelectedFile.ClipboardCopy", ex);
+            }
 
             return null;
         }
 
         // === ASYNCHRONOUS NON-BLOCKING ACTION HANDLER ===
         private void HandleRealAction(PetalAction action, string filePath) {
-            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) {
+            if (string.IsNullOrEmpty(filePath) || (!File.Exists(filePath) && !Directory.Exists(filePath))) {
                 if (Application.Current != null && Application.Current.Dispatcher != null) {
                     Application.Current.Dispatcher.Invoke(() => {
-                        toastWindow.ShowResult("✕ File Not Found", "The selected file is no longer accessible.", null);
+                        var ofd = new OpenFileDialog { Title = "Saturn: Select File to " + action.Title };
+                        if (ofd.ShowDialog() == DialogResult.OK) {
+                            HandleRealAction(action, ofd.FileName);
+                        }
                     });
                 }
                 return;
