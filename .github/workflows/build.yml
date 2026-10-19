@@ -15,34 +15,20 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Setup .NET / MSBuild
-      uses: microsoft/setup-msbuild@v2
-
     - name: Compile Orbit Standalone Binary
-      shell: pwsh
+      shell: powershell
       run: |
-        $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-        if (-not (Test-Path $csc)) {
-            $csc = (Get-ChildItem -Path "C:\Windows\Microsoft.NET\Framework64" -Filter "csc.exe" -Recurse | Select-Object -First 1).FullName
+        powershell -ExecutionPolicy Bypass -File .\build.ps1
+
+    - name: Verify Executable Generated
+      shell: powershell
+      run: |
+        if (-not (Test-Path "Orbit.exe")) {
+            Write-Error "Orbit.exe was not generated."
+            exit 1
         }
-        Write-Host "Using compiler: $csc"
-        $refs = @(
-            "PresentationFramework.dll",
-            "PresentationCore.dll",
-            "WindowsBase.dll",
-            "System.Xaml.dll",
-            "System.Windows.Forms.dll",
-            "System.Drawing.dll",
-            "System.Core.dll",
-            "System.dll",
-            "System.Xml.dll",
-            "System.Xml.Linq.dll",
-            "System.IO.Compression.dll",
-            "System.IO.Compression.FileSystem.dll"
-        )
-        & $csc /target:winexe /optimize+ /win32icon:Orbit.ico /out:Orbit.exe ("/r:" + ($refs -join ",")) OrbitApp.cs
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        Write-Host "Build complete: Orbit.exe"
+        $item = Get-Item "Orbit.exe"
+        Write-Host "Successfully generated Orbit.exe ($([math]::Round($item.Length / 1KB, 2)) KB)"
 
     - name: Upload Orbit Executable Artifact
       uses: actions/upload-artifact@v4
