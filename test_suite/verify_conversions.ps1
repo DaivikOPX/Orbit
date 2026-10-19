@@ -1,13 +1,30 @@
 # Saturn Comprehensive Conversion & Tool Verification Suite
 param(
-    [string]$SaturnExe = "D:\orbit\Saturn.exe",
-    [string]$TestDir = "D:\orbit\test_suite"
+    [string]$SaturnExe = "",
+    [string]$TestDir = ""
 )
 
 $ErrorActionPreference = "Stop"
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $ScriptDir) { $ScriptDir = (Get-Location).Path }
+
+if (-not $SaturnExe) {
+    $candidate = Join-Path $ScriptDir "Saturn.exe"
+    if (-not (Test-Path $candidate)) {
+        $candidate = Join-Path (Split-Path -Parent $ScriptDir) "Saturn.exe"
+    }
+    $SaturnExe = $candidate
+}
+
+if (-not $TestDir) {
+    $TestDir = Join-Path $ScriptDir "test_output"
+}
+
 Write-Host "==========================================================" -ForegroundColor Cyan
 Write-Host "   SATURN FOR WINDOWS: COMPLETE CONVERSION & TOOL AUDIT   " -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
+Write-Host "Saturn Binary : $SaturnExe" -ForegroundColor Gray
+Write-Host "Test Run Dir  : $TestDir" -ForegroundColor Gray
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 Add-Type -AssemblyName System.Drawing
@@ -58,7 +75,21 @@ $testBmp.Save($srcPng, [System.Drawing.Imaging.ImageFormat]::Png)
 $testBmp.Dispose()
 
 # B. Video (MP4 via ffmpeg)
-$ffmpegExe = if (Test-Path "D:\orbit\ffmpeg.exe") { "D:\orbit\ffmpeg.exe" } else { "C:\Users\daivi\OneDrive\Desktop\ffmpeg.exe" }
+$cmd = Get-Command ffmpeg -ErrorAction SilentlyContinue
+$ffmpegExe = if ($cmd) { $cmd.Source } else { $null }
+if (-not $ffmpegExe) {
+    $candidates = @(
+        (Join-Path $ScriptDir "ffmpeg.exe"),
+        (Join-Path (Split-Path -Parent $ScriptDir) "ffmpeg.exe"),
+        (Join-Path $env:LOCALAPPDATA "Microsoft\WinGet\Links\ffmpeg.exe"),
+        (Join-Path $env:ProgramFiles "ffmpeg\bin\ffmpeg.exe"),
+        (Join-Path $env:USERPROFILE "Desktop\ffmpeg.exe"),
+        "C:\ffmpeg\bin\ffmpeg.exe"
+    )
+    foreach ($c in $candidates) {
+        if (Test-Path $c) { $ffmpegExe = $c; break }
+    }
+}
 $srcMp4 = Join-Path $TestDir "source_video.mp4"
 & $ffmpegExe -hide_banner -loglevel error -y -f lavfi -i "testsrc=duration=2:size=320x240:rate=15" -f lavfi -i "sine=frequency=440:duration=2" -c:v libx264 -c:a aac $srcMp4
 
@@ -232,8 +263,15 @@ foreach ($tool in $tools) {
     if ($tool -eq "hash") {
         # Clipboard check
         Add-Type -AssemblyName System.Windows.Forms
-        $clip = [System.Windows.Forms.Clipboard]::GetText()
-        $ok = ($clip.Length -eq 64)
+        $clip = ""
+        for ($i = 0; $i -lt 10; $i++) {
+            try {
+                $clip = [System.Windows.Forms.Clipboard]::GetText()
+                if ($clip -and $clip.Length -eq 64) { break }
+            } catch { }
+            Start-Sleep -Milliseconds 50
+        }
+        $ok = ($clip -and $clip.Length -eq 64)
         Record-Result "Tool" "Tool: $tool" $srcPng $ok "SHA-256 length 64"
     } else {
         $expectedExt = switch ($tool) {
@@ -258,6 +296,12 @@ Record-Result "Tool" "Video Tool: mute" $outMute $okMute "OK"
 $outSnap = Join-Path $TestDir "source_video_cover.jpg"
 $okSnap = (Test-Path $outSnap) -and ((Get-Item $outSnap).Length -gt 0)
 Record-Result "Tool" "Video Tool: snapshot" $outSnap $okSnap "OK"
+
+# Audio tools: normalize
+& $SaturnExe tool $srcWav --action normalize | Out-Null
+$outNorm = Join-Path $TestDir "source_audio_normalized.wav"
+$okNorm = (Test-Path $outNorm) -and ((Get-Item $outNorm).Length -gt 0)
+Record-Result "Tool" "Audio Tool: normalize" $outNorm $okNorm "OK"
 
 # --- SUMMARY REPORT ---
 Write-Host "`n==========================================================" -ForegroundColor Cyan

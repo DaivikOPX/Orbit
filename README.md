@@ -169,26 +169,26 @@ D:\orbit\
 │   ├── download_ffmpeg.bat  # Automated FFmpeg setup batch script
 │   └── download_ffmpeg.ps1  # PowerShell FFmpeg downloader
 └── 📁 test_suite/
-    └── verify_conversions.ps1 # Comprehensive 43-test automated validation suite
+    └── verify_conversions.ps1 # Comprehensive 44-test automated validation suite
 ```
 
 ---
 
 ## 🧪 Verification & Automated Testing
 
-Saturn includes an exhaustive end-to-end verification suite in [`verify_conversions.ps1`](verify_conversions.ps1):
+Saturn includes an exhaustive end-to-end verification suite in [`test_suite/verify_conversions.ps1`](test_suite/verify_conversions.ps1):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\verify_conversions.ps1
+powershell -ExecutionPolicy Bypass -File .\test_suite\verify_conversions.ps1
 ```
 
-**Verification Results: 43 / 43 Passed (100% Success Rate)**
+**Verification Results: 44 / 44 Passed (100% Success Rate)**
 - ✅ **Images (8/8)**: PNG, JPG, WEBP, ICO, BMP, TIFF, GIF, PDF
 - ✅ **Videos (8/8)**: MP4, GIF, MP3, WEBM, MKV, MOV, AVI, WAV
 - ✅ **Audio (6/6)**: MP3, WAV, FLAC, M4A, OPUS, OGG
 - ✅ **Data & Tables (10/10)**: CSV ↔ JSON, JSON ↔ XML, Markdown Table, HTML Table, TXT
 - ✅ **Documents (4/4)**: MD → PDF, MD → DOCX, MD → HTML, MD → TXT
-- ✅ **Built-in Tools (7/7)**: Lossless Compress, Metadata Stripper, Grayscale, Rotate 90°, SHA-256 Checksum, Mute Video, Video Snapshot
+- ✅ **Built-in Tools (8/8)**: Lossless Compress, Metadata Stripper, Grayscale, Rotate 90°, SHA-256 Checksum, Mute Video, Video Snapshot, Audio Normalize
 
 ---
 

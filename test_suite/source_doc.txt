@@ -1,5 +1,0 @@
-﻿Saturn System Report
-Version: 1.0.0
-Engine: Native C# WPF with FFmpeg Media Core
-Platform: Windows 11 x64
-All conversions run locally without telemetry or cloud dependencies.

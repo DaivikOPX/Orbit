@@ -48,8 +48,15 @@ Write-Host ".NET Dir: $netDir" -ForegroundColor Gray
 Write-Host "WPF Dir:  $wpfDir" -ForegroundColor Gray
 Write-Host "Compiling $src -> $out ..." -ForegroundColor Yellow
 
-$refArgs = "/r:" + ($refs -join ",")
-$proc = Start-Process -FilePath $csc -ArgumentList "/target:winexe /optimize+ /win32icon:`"$ico`" /out:`"$out`" `"$refArgs`" `"$src`"" -NoNewWindow -Wait -PassThru
+$argList = @(
+    "/target:winexe",
+    "/optimize+",
+    "/win32icon:$ico",
+    "/out:$out",
+    "/r:$($refs -join ',')",
+    "$src"
+)
+$proc = Start-Process -FilePath $csc -ArgumentList $argList -NoNewWindow -Wait -PassThru
 
 if ($proc.ExitCode -eq 0) {
     Write-Host "[SUCCESS] Saturn.exe compiled successfully!" -ForegroundColor Green

@@ -8,7 +8,8 @@ saturn_debug.log
 orbit_debug.log
 
 # Test Artifacts
-test_suite/
+test_output/
+test_suite/test_output/
 
 # Heavy Third-Party External Binaries (>50MB)
 # Note: Use scripts/download_ffmpeg.ps1 or 'winget install Gyan.FFmpeg'

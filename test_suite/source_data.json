@@ -1,5 +1,0 @@
-﻿[
-  { "id": "201", "product": "Quantum Laptop", "price": "1499", "status": "InStock" },
-  { "id": "202", "product": "Wireless Earbuds", "price": "199", "status": "InStock" },
-  { "id": "203", "product": "OLED Monitor", "price": "799", "status": "PreOrder" }
-]

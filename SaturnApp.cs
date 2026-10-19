@@ -1012,7 +1012,7 @@ namespace SaturnWindows {
         }
     }
 
-    // === ORBIT CATALOG (CATEGORIES & TOOLS & ACTIONS) ===
+    // === SATURN CATALOG (CATEGORIES & TOOLS & ACTIONS) ===
     public static class SaturnCatalog {
         public static List<PetalAction> GetPetalsForExtension(string ext, string mode) {
             var list = new List<PetalAction>();
@@ -1127,7 +1127,7 @@ namespace SaturnWindows {
         }
     }
 
-    // === FLOATING PINNED SHELF (Tangerine Float Feature) ===
+    // === FLOATING PINNED SHELF ===
     public class FloatingShelfWindow : Window {
         private StackPanel listPanel;
 
@@ -1265,8 +1265,8 @@ namespace SaturnWindows {
                 string oneDriveDesktop = Path.Combine(userProfile, "OneDrive", "Desktop", "ffmpeg.exe");
                 if (File.Exists(oneDriveDesktop)) return oneDriveDesktop;
 
-                string scratch = Path.Combine(userProfile, @".gemini\antigravity\scratch\orbit-windows\ffmpeg.exe");
-                if (File.Exists(scratch)) return scratch;
+                string localSaturn = Path.Combine(userProfile, "AppData", "Local", "Saturn", "ffmpeg.exe");
+                if (File.Exists(localSaturn)) return localSaturn;
 
                 // Check system PATH
                 string pathEnv = Environment.GetEnvironmentVariable("PATH");
@@ -1358,7 +1358,7 @@ namespace SaturnWindows {
             }
         }
 
-        // Safe automatic output path resolver (prevents file lock IOExceptions when file is open)
+        // Safe automatic output path resolver - guarantees ZERO overwrites via clean disambiguation
         public static string GetAvailableOutputPath(string path, bool forceNew = false) {
             try {
                 string dir = Path.GetDirectoryName(path);
@@ -1367,22 +1367,10 @@ namespace SaturnWindows {
 
                 if (!forceNew && !File.Exists(path)) return path;
 
-                if (!forceNew && File.Exists(path)) {
-                    try {
-                        using (var fs = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) {
-                            return path; // File is not locked, safe to overwrite
-                        }
-                    } catch { }
-                }
-
+                // When file exists or forceNew is requested, find the next available unique file name
                 for (int i = 2; i <= 999; i++) {
                     string cand = Path.Combine(dir, string.Format("{0}_{1}{2}", baseName, i, ext));
                     if (!File.Exists(cand)) return cand;
-                    try {
-                        using (var fs = new FileStream(cand, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) {
-                            return cand;
-                        }
-                    } catch { }
                 }
             } catch { }
             return path;
@@ -1445,46 +1433,58 @@ namespace SaturnWindows {
 
             // 2. VIDEO CONVERSIONS
             if (IsVideoFormat(srcExt)) {
+                string tempOut = Path.Combine(dir, "." + Path.GetFileName(outPath) + "." + Guid.NewGuid().ToString("N") + "." + targetExt);
                 if (targetExt == "mp4") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -c:v libx264 -preset fast -crf 22 -c:a aac -b:a 192k \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -c:v libx264 -preset fast -crf 22 -c:a aac -b:a 192k \"{1}\"", srcPath, tempOut));
                 } else if (targetExt == "gif") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -vf \"fps=12,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -vf \"fps=12,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" \"{1}\"", srcPath, tempOut));
                 } else if (targetExt == "mp3") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -vn -c:a libmp3lame -b:a 320k \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -vn -c:a libmp3lame -b:a 320k \"{1}\"", srcPath, tempOut));
                 } else if (targetExt == "webm") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -c:v libvpx-vp9 -b:v 0 -crf 30 -c:a libopus \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -c:v libvpx-vp9 -b:v 0 -crf 30 -c:a libopus \"{1}\"", srcPath, tempOut));
                 } else if (targetExt == "mkv") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -c copy \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -c copy \"{1}\"", srcPath, tempOut));
                 } else if (targetExt == "mov") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -c:v libx264 -c:a aac \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -c:v libx264 -c:a aac \"{1}\"", srcPath, tempOut));
                 } else if (targetExt == "avi") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -c:v mpeg4 -qscale:v 3 -c:a mp3 \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -c:v mpeg4 -qscale:v 3 -c:a mp3 \"{1}\"", srcPath, tempOut));
                 } else if (targetExt == "wav") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -vn -c:a pcm_s16le \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -vn -c:a pcm_s16le \"{1}\"", srcPath, tempOut));
                 } else {
-                    RunFfmpeg(string.Format("-i \"{0}\" \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" \"{1}\"", srcPath, tempOut));
                 }
-                if (File.Exists(outPath)) return outPath;
+                if (File.Exists(tempOut) && new FileInfo(tempOut).Length > 0) {
+                    File.Move(tempOut, outPath);
+                    return outPath;
+                }
+                try { if (File.Exists(tempOut)) File.Delete(tempOut); } catch { }
+                throw new InvalidOperationException(string.Format("Failed to convert .{0} to .{1}. Please ensure FFmpeg is available.", srcExt, targetExt));
             }
 
             // 3. AUDIO CONVERSIONS
             if (IsAudioFormat(srcExt)) {
+                string tempOut = Path.Combine(dir, "." + Path.GetFileName(outPath) + "." + Guid.NewGuid().ToString("N") + "." + targetExt);
                 if (targetExt == "mp3") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -c:a libmp3lame -b:a 320k \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -c:a libmp3lame -b:a 320k \"{1}\"", srcPath, tempOut));
                 } else if (targetExt == "wav") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -c:a pcm_s16le \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -c:a pcm_s16le \"{1}\"", srcPath, tempOut));
                 } else if (targetExt == "flac") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -c:a flac \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -c:a flac \"{1}\"", srcPath, tempOut));
                 } else if (targetExt == "m4a") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -c:a aac -b:a 256k \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -c:a aac -b:a 256k \"{1}\"", srcPath, tempOut));
                 } else if (targetExt == "opus") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -c:a libopus -b:a 128k \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -c:a libopus -b:a 128k \"{1}\"", srcPath, tempOut));
                 } else if (targetExt == "ogg") {
-                    RunFfmpeg(string.Format("-i \"{0}\" -c:a libvorbis -q:a 6 \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" -c:a libvorbis -q:a 6 \"{1}\"", srcPath, tempOut));
                 } else {
-                    RunFfmpeg(string.Format("-i \"{0}\" \"{1}\"", srcPath, outPath));
+                    RunFfmpeg(string.Format("-i \"{0}\" \"{1}\"", srcPath, tempOut));
                 }
-                if (File.Exists(outPath)) return outPath;
+                if (File.Exists(tempOut) && new FileInfo(tempOut).Length > 0) {
+                    File.Move(tempOut, outPath);
+                    return outPath;
+                }
+                try { if (File.Exists(tempOut)) File.Delete(tempOut); } catch { }
+                throw new InvalidOperationException(string.Format("Failed to convert .{0} to .{1}. Please ensure FFmpeg is available.", srcExt, targetExt));
             }
 
             // 4. DATA & SPREADSHEET CONVERSIONS (CSV, JSON, XML, TSV)
@@ -1492,56 +1492,43 @@ namespace SaturnWindows {
                 string text = File.ReadAllText(srcPath, Encoding.UTF8);
                 char delim = srcExt == "tsv" ? '\t' : ',';
                 if (targetExt == "json") {
-                    File.WriteAllText(outPath, CsvToJson(text, delim), Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, CsvToJson(text, delim), Encoding.UTF8);
                 } else if (targetExt == "html" || targetExt == "htm") {
-                    File.WriteAllText(outPath, CsvToHtml(text, delim, baseName), Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, CsvToHtml(text, delim, baseName), Encoding.UTF8);
                 } else if (targetExt == "md") {
-                    File.WriteAllText(outPath, CsvToMarkdown(text, delim), Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, CsvToMarkdown(text, delim), Encoding.UTF8);
                 } else if (targetExt == "txt") {
-                    File.WriteAllText(outPath, text, Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, text, Encoding.UTF8);
                 }
             }
 
             if (srcExt == "json") {
                 string jsonText = File.ReadAllText(srcPath, Encoding.UTF8);
                 if (targetExt == "csv") {
-                    File.WriteAllText(outPath, JsonToCsv(jsonText), Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, JsonToCsv(jsonText), Encoding.UTF8);
                 } else if (targetExt == "html" || targetExt == "htm") {
-                    File.WriteAllText(outPath, JsonToHtml(jsonText, baseName), Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, JsonToHtml(jsonText, baseName), Encoding.UTF8);
                 } else if (targetExt == "md") {
-                    File.WriteAllText(outPath, JsonToMarkdown(jsonText), Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, JsonToMarkdown(jsonText), Encoding.UTF8);
                 } else if (targetExt == "txt") {
-                    File.WriteAllText(outPath, jsonText, Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, jsonText, Encoding.UTF8);
                 }
             }
 
             if (srcExt == "xml") {
                 string xmlText = File.ReadAllText(srcPath, Encoding.UTF8);
                 if (targetExt == "json") {
-                    File.WriteAllText(outPath, XmlToJson(xmlText), Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, XmlToJson(xmlText), Encoding.UTF8);
                 } else if (targetExt == "csv") {
-                    File.WriteAllText(outPath, XmlToCsv(xmlText), Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, XmlToCsv(xmlText), Encoding.UTF8);
                 } else if (targetExt == "txt") {
-                    File.WriteAllText(outPath, xmlText, Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, xmlText, Encoding.UTF8);
                 } else if (targetExt == "md") {
                     string json = XmlToJson(xmlText);
-                    File.WriteAllText(outPath, JsonToMarkdown(json), Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, JsonToMarkdown(json), Encoding.UTF8);
                 } else if (targetExt == "html" || targetExt == "htm") {
                     string json = XmlToJson(xmlText);
-                    File.WriteAllText(outPath, JsonToHtml(json, baseName), Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, JsonToHtml(json, baseName), Encoding.UTF8);
                 }
             }
 
@@ -1555,16 +1542,13 @@ namespace SaturnWindows {
                     CreateDocxWithContent(outPath, content, null);
                     return outPath;
                 } else if (targetExt == "html" || targetExt == "htm") {
-                    File.WriteAllText(outPath, TextOrMdToHtml(content, baseName), Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, TextOrMdToHtml(content, baseName), Encoding.UTF8);
                 } else if (targetExt == "txt") {
                     string plain = srcExt.StartsWith("htm") ? StripHtml(content) : content;
-                    File.WriteAllText(outPath, plain, Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, plain, Encoding.UTF8);
                 } else if (targetExt == "md") {
                     string plain = srcExt.StartsWith("htm") ? StripHtml(content) : content;
-                    File.WriteAllText(outPath, plain, Encoding.UTF8);
-                    return outPath;
+                    return WriteAllTextAtomic(outPath, plain, Encoding.UTF8);
                 }
             }
 
@@ -1662,43 +1646,63 @@ namespace SaturnWindows {
 
             if (toolId == "compress") {
                 outPath = GetAvailableOutputPath(Path.Combine(dir, baseName + "_compressed" + ext));
+                string tempOut = Path.Combine(dir, "." + Path.GetFileName(outPath) + "." + Guid.NewGuid().ToString("N") + ext);
+                long originalSize = new FileInfo(srcPath).Length;
+
                 if (rawExt == "jpg" || rawExt == "jpeg") {
                     try {
                         using (var bmp = LoadAnyImageSafely(srcPath)) {
-                            SafeSaveBitmap(bmp, outPath, "jpg", 55L);
+                            SafeSaveBitmap(bmp, tempOut, "jpg", 55L);
                         }
-                        return outPath;
                     } catch {
-                        if (RunFfmpeg(string.Format("-i \"{0}\" -q:v 15 \"{1}\"", srcPath, outPath)) && File.Exists(outPath)) {
-                            return outPath;
-                        }
+                        RunFfmpeg(string.Format("-i \"{0}\" -q:v 15 \"{1}\"", srcPath, tempOut));
                     }
                 } else if (rawExt == "png") {
+                    bool ffmpegSuccess = false;
+                    string palTemp = Path.Combine(dir, "." + Path.GetFileName(outPath) + ".pal." + Guid.NewGuid().ToString("N") + ".png");
                     try {
-                        using (var img = LoadAnyImageSafely(srcPath)) {
-                            int nw = Math.Max(1, (int)(img.Width * 0.85));
-                            int nh = Math.Max(1, (int)(img.Height * 0.85));
-                            using (var scaled = new Bitmap(img, nw, nh)) {
-                                SafeSaveBitmap(scaled, outPath, "png", 92L);
+                        if (RunFfmpeg(string.Format("-i \"{0}\" -vf \"palettegen=max_colors=128\" \"{1}\"", srcPath, palTemp))) {
+                            if (RunFfmpeg(string.Format("-i \"{0}\" -i \"{1}\" -lavfi \"paletteuse=dither=bayer:bayer_scale=1\" \"{2}\"", srcPath, palTemp, tempOut))) {
+                                if (File.Exists(tempOut) && new FileInfo(tempOut).Length < originalSize) {
+                                    ffmpegSuccess = true;
+                                }
                             }
                         }
-                        return outPath;
-                    } catch {
-                        if (RunFfmpeg(string.Format("-i \"{0}\" -vf \"scale=iw*0.85:-1\" \"{1}\"", srcPath, outPath)) && File.Exists(outPath)) {
-                            return outPath;
+                    } catch { }
+                    finally {
+                        try { if (File.Exists(palTemp)) File.Delete(palTemp); } catch { }
+                    }
+
+                    if (!ffmpegSuccess) {
+                        try {
+                            using (var img = LoadAnyImageSafely(srcPath)) {
+                                int nw = Math.Max(1, (int)(img.Width * 0.85));
+                                int nh = Math.Max(1, (int)(img.Height * 0.85));
+                                using (var scaled = new Bitmap(img, nw, nh)) {
+                                    SafeSaveBitmap(scaled, tempOut, "png", 92L);
+                                }
+                            }
+                        } catch {
+                            RunFfmpeg(string.Format("-i \"{0}\" -vf \"scale=iw*0.85:-1\" \"{1}\"", srcPath, tempOut));
                         }
                     }
                 } else if (IsVideoFormat(rawExt)) {
-                    if (RunFfmpeg(string.Format("-i \"{0}\" -vf \"scale='min(1280,iw)':-2\" -c:v libx264 -crf 28 -preset fast -c:a aac -b:a 128k \"{1}\"", srcPath, outPath)) && File.Exists(outPath)) {
-                        return outPath;
-                    }
+                    RunFfmpeg(string.Format("-i \"{0}\" -vf \"scale='min(1280,iw)':-2\" -c:v libx264 -crf 28 -preset fast -c:a aac -b:a 128k \"{1}\"", srcPath, tempOut));
                 } else if (IsAudioFormat(rawExt)) {
-                    if (RunFfmpeg(string.Format("-i \"{0}\" -c:a libmp3lame -b:a 128k \"{1}\"", srcPath, outPath)) && File.Exists(outPath)) {
+                    RunFfmpeg(string.Format("-i \"{0}\" -c:a libmp3lame -b:a 128k \"{1}\"", srcPath, tempOut));
+                }
+
+                if (File.Exists(tempOut) && new FileInfo(tempOut).Length > 0) {
+                    long newSize = new FileInfo(tempOut).Length;
+                    if (newSize < originalSize) {
+                        File.Move(tempOut, outPath);
                         return outPath;
                     }
+                    try { File.Delete(tempOut); } catch { }
+                    throw new InvalidOperationException(string.Format("File is already optimally compressed ({0:0.#} KB).", originalSize / 1024.0));
                 }
-                File.Copy(srcPath, outPath, true);
-                return outPath;
+                try { if (File.Exists(tempOut)) File.Delete(tempOut); } catch { }
+                throw new InvalidOperationException("Compression was unable to reduce the file size.");
             }
 
             if (toolId == "grayscale") {
@@ -1724,9 +1728,12 @@ namespace SaturnWindows {
                     }
                     return outPath;
                 } catch {
-                    if (RunFfmpeg(string.Format("-i \"{0}\" -vf \"format=gray\" \"{1}\"", srcPath, outPath)) && File.Exists(outPath)) {
+                    string tempOut = Path.Combine(dir, "." + Path.GetFileName(outPath) + "." + Guid.NewGuid().ToString("N") + ext);
+                    if (RunFfmpeg(string.Format("-i \"{0}\" -vf \"format=gray\" \"{1}\"", srcPath, tempOut)) && File.Exists(tempOut) && new FileInfo(tempOut).Length > 0) {
+                        File.Move(tempOut, outPath);
                         return outPath;
                     }
+                    try { if (File.Exists(tempOut)) File.Delete(tempOut); } catch { }
                     throw;
                 }
             }
@@ -1742,42 +1749,74 @@ namespace SaturnWindows {
                     }
                     return outPath;
                 } catch {
-                    if (RunFfmpeg(string.Format("-i \"{0}\" -vf \"transpose=1\" \"{1}\"", srcPath, outPath)) && File.Exists(outPath)) {
+                    string tempOut = Path.Combine(dir, "." + Path.GetFileName(outPath) + "." + Guid.NewGuid().ToString("N") + ext);
+                    if (RunFfmpeg(string.Format("-i \"{0}\" -vf \"transpose=1\" \"{1}\"", srcPath, tempOut)) && File.Exists(tempOut) && new FileInfo(tempOut).Length > 0) {
+                        File.Move(tempOut, outPath);
                         return outPath;
                     }
+                    try { if (File.Exists(tempOut)) File.Delete(tempOut); } catch { }
                     throw;
                 }
             }
 
             if (toolId == "mute") {
-                outPath = Path.Combine(dir, baseName + "_muted" + ext);
-                RunFfmpeg(string.Format("-i \"{0}\" -c:v copy -an \"{1}\"", srcPath, outPath));
-                return outPath;
+                outPath = GetAvailableOutputPath(Path.Combine(dir, baseName + "_muted" + ext));
+                string tempOut = Path.Combine(dir, "." + Path.GetFileName(outPath) + "." + Guid.NewGuid().ToString("N") + ext);
+                bool ok = RunFfmpeg(string.Format("-i \"{0}\" -c:v copy -an \"{1}\"", srcPath, tempOut));
+                if (ok && File.Exists(tempOut) && new FileInfo(tempOut).Length > 0) {
+                    File.Move(tempOut, outPath);
+                    return outPath;
+                }
+                try { if (File.Exists(tempOut)) File.Delete(tempOut); } catch { }
+                throw new InvalidOperationException("Failed to mute audio track. Please ensure FFmpeg is available.");
             }
 
             if (toolId == "snapshot") {
-                outPath = Path.Combine(dir, baseName + "_cover.jpg");
-                RunFfmpeg(string.Format("-ss 00:00:01 -i \"{0}\" -vframes 1 -q:v 2 \"{1}\"", srcPath, outPath));
-                if (!File.Exists(outPath)) {
-                    RunFfmpeg(string.Format("-ss 00:00:00 -i \"{0}\" -vframes 1 -q:v 2 \"{1}\"", srcPath, outPath));
+                outPath = GetAvailableOutputPath(Path.Combine(dir, baseName + "_cover.jpg"));
+                string tempOut = Path.Combine(dir, "." + Path.GetFileName(outPath) + "." + Guid.NewGuid().ToString("N") + ".jpg");
+                bool ok = RunFfmpeg(string.Format("-ss 00:00:01 -i \"{0}\" -vframes 1 -q:v 2 \"{1}\"", srcPath, tempOut));
+                if (!ok || !File.Exists(tempOut) || new FileInfo(tempOut).Length == 0) {
+                    ok = RunFfmpeg(string.Format("-ss 00:00:00 -i \"{0}\" -vframes 1 -q:v 2 \"{1}\"", srcPath, tempOut));
                 }
-                return outPath;
+                if (ok && File.Exists(tempOut) && new FileInfo(tempOut).Length > 0) {
+                    File.Move(tempOut, outPath);
+                    return outPath;
+                }
+                try { if (File.Exists(tempOut)) File.Delete(tempOut); } catch { }
+                throw new InvalidOperationException("Failed to extract snapshot frame. Please ensure FFmpeg is available.");
             }
 
             if (toolId == "normalize") {
-                outPath = Path.Combine(dir, baseName + "_normalized" + ext);
-                RunFfmpeg(string.Format("-i \"{0}\" -af loudnorm \"{1}\"", srcPath, outPath));
-                return outPath;
+                outPath = GetAvailableOutputPath(Path.Combine(dir, baseName + "_normalized" + ext));
+                string tempOut = Path.Combine(dir, "." + Path.GetFileName(outPath) + "." + Guid.NewGuid().ToString("N") + ext);
+                bool ok = RunFfmpeg(string.Format("-i \"{0}\" -af loudnorm \"{1}\"", srcPath, tempOut));
+                if (ok && File.Exists(tempOut) && new FileInfo(tempOut).Length > 0) {
+                    File.Move(tempOut, outPath);
+                    return outPath;
+                }
+                try { if (File.Exists(tempOut)) File.Delete(tempOut); } catch { }
+                throw new InvalidOperationException("Failed to normalize audio track. Please ensure FFmpeg is available.");
             }
 
             if (toolId == "hash") {
                 string h = ComputeSha256(srcPath);
-                System.Windows.Clipboard.SetText(h);
-                return srcPath;
+                SafeSetClipboardText(h);
+                return h;
             }
 
-            File.Copy(srcPath, outPath, true);
-            return outPath;
+            throw new NotSupportedException("Unknown tool action: " + toolId);
+        }
+
+        public static bool SafeSetClipboardText(string text) {
+            for (int attempt = 0; attempt < 10; attempt++) {
+                try {
+                    System.Windows.Clipboard.SetText(text);
+                    return true;
+                } catch {
+                    System.Threading.Thread.Sleep(40);
+                }
+            }
+            return false;
         }
 
         // --- FORMAT CHECKS ---
@@ -1944,11 +1983,11 @@ namespace SaturnWindows {
         }
 
         public static void CreateDocxWithContent(string outputPath, string text, List<byte[]> images) {
-            if (File.Exists(outputPath)) File.Delete(outputPath);
             if (images == null) images = new List<byte[]>();
 
-            using (var fs = new FileStream(outputPath, FileMode.Create)) {
-                using (var zip = new ZipArchive(fs, ZipArchiveMode.Create)) {
+            byte[] docxData;
+            using (var msDocx = new MemoryStream()) {
+                using (var zip = new ZipArchive(msDocx, ZipArchiveMode.Create, true)) {
                     // [Content_Types].xml
                     var entry1 = zip.CreateEntry("[Content_Types].xml");
                     using (var sw = new StreamWriter(entry1.Open(), Encoding.UTF8)) {
@@ -2073,7 +2112,9 @@ namespace SaturnWindows {
                         sw.Write(sb.ToString());
                     }
                 }
+                docxData = msDocx.ToArray();
             }
+            WriteAllBytesAtomic(outputPath, docxData);
         }
 
         // --- ICO GENERATOR (MULTI-FRAME WINDOWS ICON) ---
@@ -2360,8 +2401,7 @@ namespace SaturnWindows {
             }
 
             string mdContent = sb.ToString().TrimEnd();
-            File.WriteAllText(outMdPath, mdContent, Encoding.UTF8);
-            return outMdPath;
+            return WriteAllTextAtomic(outMdPath, mdContent, Encoding.UTF8);
         }
 
         public static string PdfToHtml(string pdfPath, string outHtmlPath) {
@@ -2400,8 +2440,7 @@ namespace SaturnWindows {
             }
 
             sb.AppendLine("</div></body></html>");
-            File.WriteAllText(outHtmlPath, sb.ToString(), Encoding.UTF8);
-            return outHtmlPath;
+            return WriteAllTextAtomic(outHtmlPath, sb.ToString(), Encoding.UTF8);
         }
 
         public static string ExtractDocxText(string docxPath) {
@@ -2491,15 +2530,13 @@ namespace SaturnWindows {
                 sb.AppendLine("*No readable text or images found in document.*");
             }
 
-            File.WriteAllText(outMdPath, sb.ToString().TrimEnd(), Encoding.UTF8);
-            return outMdPath;
+            return WriteAllTextAtomic(outMdPath, sb.ToString().TrimEnd(), Encoding.UTF8);
         }
 
         public static string DocxToHtml(string docxPath, string outHtmlPath) {
             string txt = ExtractDocxText(docxPath);
             string baseName = Path.GetFileNameWithoutExtension(docxPath);
-            File.WriteAllText(outHtmlPath, TextOrMdToHtml(txt, baseName), Encoding.UTF8);
-            return outHtmlPath;
+            return WriteAllTextAtomic(outHtmlPath, TextOrMdToHtml(txt, baseName), Encoding.UTF8);
         }
 
         public static string DocxToPdf(string docxPath, string outPdfPath) {
@@ -2510,8 +2547,7 @@ namespace SaturnWindows {
 
         public static string DocxToTxt(string docxPath, string outTxtPath) {
             string txt = ExtractDocxText(docxPath);
-            File.WriteAllText(outTxtPath, txt, Encoding.UTF8);
-            return outTxtPath;
+            return WriteAllTextAtomic(outTxtPath, txt, Encoding.UTF8);
         }
 
         public static List<byte[]> ExtractPdfImages(string pdfPath) {
@@ -2615,52 +2651,149 @@ namespace SaturnWindows {
                     raw = "[Empty document]";
                 }
             }
-            File.WriteAllText(outTxtPath, raw, Encoding.UTF8);
+            WriteAllTextAtomic(outTxtPath, raw, Encoding.UTF8);
         }
 
         public static string ExtractPdfRawText(string pdfPath) {
             try {
                 byte[] bytes = File.ReadAllBytes(pdfPath);
-                string content = Encoding.Default.GetString(bytes);
                 var sb = new StringBuilder();
 
-                // Search strictly inside BT (Begin Text) ... ET (End Text) blocks
-                var btMatches = Regex.Matches(content, @"BT\s+(.*?)\s+ET", RegexOptions.Singleline);
-                foreach (Match bt in btMatches) {
-                    string block = bt.Groups[1].Value;
-                    var textMatches = Regex.Matches(block, @"\(([^)]*)\)\s*(?:Tj|'|"")");
-                    foreach (Match tm in textMatches) {
-                        string val = tm.Groups[1].Value
-                            .Replace("\\(", "(")
-                            .Replace("\\)", ")")
-                            .Replace("\\\\", "\\");
+                // 1. Decompress and extract from all FlateDecode and raw content streams
+                var streams = ExtractAllPdfStreams(bytes);
+                foreach (string streamText in streams) {
+                    ExtractTextFromStream(streamText, sb);
+                }
 
-                        if (IsMostlyPrintableText(val)) {
-                            sb.AppendLine(val);
-                        }
-                    }
-
-                    var hexMatches = Regex.Matches(block, @"<([0-9A-Fa-f]+)>\s*(?:Tj|'|"")");
-                    foreach (Match hm in hexMatches) {
-                        string hex = hm.Groups[1].Value;
-                        if (hex.Length % 2 == 0) {
-                            try {
-                                var hexBytes = new byte[hex.Length / 2];
-                                for (int i = 0; i < hexBytes.Length; i++) {
-                                    hexBytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
-                                }
-                                string val = Encoding.UTF8.GetString(hexBytes);
-                                if (IsMostlyPrintableText(val)) {
-                                    sb.AppendLine(val);
-                                }
-                            } catch { }
-                        }
-                    }
+                // 2. Fallback: check uncompressed raw PDF text if no stream yielded text
+                if (sb.Length == 0) {
+                    string rawContent = Encoding.Default.GetString(bytes);
+                    ExtractTextFromStream(rawContent, sb);
                 }
 
                 if (sb.Length > 0) return sb.ToString().Trim();
-            } catch { }
+            } catch (Exception ex) {
+                SaturnLog.LogException("ExtractPdfRawText", ex);
+            }
             return "";
+        }
+
+        public static List<string> ExtractAllPdfStreams(byte[] data) {
+            var list = new List<string>();
+            try {
+                int len = data.Length;
+                int idx = 0;
+                while (idx < len - 10) {
+                    if (data[idx] == 's' && data[idx + 1] == 't' && data[idx + 2] == 'r' &&
+                        data[idx + 3] == 'e' && data[idx + 4] == 'a' && data[idx + 5] == 'm') {
+                        
+                        int streamStart = idx + 6;
+                        if (streamStart < len && data[streamStart] == '\r') streamStart++;
+                        if (streamStart < len && data[streamStart] == '\n') streamStart++;
+
+                        int streamEnd = -1;
+                        for (int j = streamStart; j < len - 9; j++) {
+                            if (data[j] == 'e' && data[j + 1] == 'n' && data[j + 2] == 'd' &&
+                                data[j + 3] == 's' && data[j + 4] == 't' && data[j + 5] == 'r' &&
+                                data[j + 6] == 'e' && data[j + 7] == 'a' && data[j + 8] == 'm') {
+                                streamEnd = j;
+                                break;
+                            }
+                        }
+
+                        if (streamEnd > streamStart) {
+                            int streamLen = streamEnd - streamStart;
+                            int dictSearchStart = Math.Max(0, idx - 400);
+                            string dictHeader = Encoding.ASCII.GetString(data, dictSearchStart, idx - dictSearchStart);
+                            bool isFlate = dictHeader.IndexOf("/FlateDecode", StringComparison.OrdinalIgnoreCase) >= 0;
+
+                            if (isFlate && streamLen > 6) {
+                                try {
+                                    using (var msIn = new MemoryStream(data, streamStart + 2, streamLen - 6)) {
+                                        using (var def = new DeflateStream(msIn, CompressionMode.Decompress)) {
+                                            using (var msOut = new MemoryStream()) {
+                                                def.CopyTo(msOut);
+                                                string inflated = Encoding.UTF8.GetString(msOut.ToArray());
+                                                if (!string.IsNullOrWhiteSpace(inflated)) list.Add(inflated);
+                                            }
+                                        }
+                                    }
+                                } catch {
+                                    try {
+                                        using (var msIn = new MemoryStream(data, streamStart, streamLen)) {
+                                            using (var def = new DeflateStream(msIn, CompressionMode.Decompress)) {
+                                                using (var msOut = new MemoryStream()) {
+                                                    def.CopyTo(msOut);
+                                                    string inflated = Encoding.UTF8.GetString(msOut.ToArray());
+                                                    if (!string.IsNullOrWhiteSpace(inflated)) list.Add(inflated);
+                                                }
+                                            }
+                                        }
+                                    } catch { }
+                                }
+                            } else if (!isFlate) {
+                                string plain = Encoding.UTF8.GetString(data, streamStart, streamLen);
+                                if (!string.IsNullOrWhiteSpace(plain)) list.Add(plain);
+                            }
+
+                            idx = streamEnd + 9;
+                            continue;
+                        }
+                    }
+                    idx++;
+                }
+            } catch { }
+            return list;
+        }
+
+        private static void ExtractTextFromStream(string streamText, StringBuilder sb) {
+            if (string.IsNullOrWhiteSpace(streamText)) return;
+
+            var btMatches = Regex.Matches(streamText, @"BT\s+(.*?)\s+ET", RegexOptions.Singleline);
+            foreach (Match bt in btMatches) {
+                string block = bt.Groups[1].Value;
+
+                var tjArrayMatches = Regex.Matches(block, @"\[(.*?)\]\s*TJ", RegexOptions.Singleline);
+                foreach (Match tam in tjArrayMatches) {
+                    var strMatches = Regex.Matches(tam.Groups[1].Value, @"\(([^)]*)\)");
+                    var lineSb = new StringBuilder();
+                    foreach (Match sm in strMatches) {
+                        lineSb.Append(UnescapePdfString(sm.Groups[1].Value));
+                    }
+                    string line = lineSb.ToString().Trim();
+                    if (IsMostlyPrintableText(line)) sb.AppendLine(line);
+                }
+
+                var tjMatches = Regex.Matches(block, @"\(([^)]*)\)\s*(?:Tj|'|"")");
+                foreach (Match tm in tjMatches) {
+                    string line = UnescapePdfString(tm.Groups[1].Value).Trim();
+                    if (IsMostlyPrintableText(line)) sb.AppendLine(line);
+                }
+
+                var hexMatches = Regex.Matches(block, @"<([0-9A-Fa-f]+)>\s*(?:Tj|'|"")");
+                foreach (Match hm in hexMatches) {
+                    string hex = hm.Groups[1].Value;
+                    if (hex.Length % 2 == 0) {
+                        try {
+                            var hexBytes = new byte[hex.Length / 2];
+                            for (int i = 0; i < hexBytes.Length; i++) {
+                                hexBytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+                            }
+                            string line = Encoding.UTF8.GetString(hexBytes).Trim();
+                            if (IsMostlyPrintableText(line)) sb.AppendLine(line);
+                        } catch { }
+                    }
+                }
+            }
+        }
+
+        private static string UnescapePdfString(string s) {
+            return s.Replace("\\(", "(")
+                    .Replace("\\)", ")")
+                    .Replace("\\\\", "\\")
+                    .Replace("\\r", "\r")
+                    .Replace("\\n", "\n")
+                    .Replace("\\t", "\t");
         }
 
         private static bool IsMostlyPrintableText(string s) {
@@ -2698,23 +2831,19 @@ namespace SaturnWindows {
             return list;
         }
 
+        // Robust Pure C# JSON Parser (Zero Regex, Full Support for Nested Objects & Arrays)
         private static List<Dictionary<string, string>> ParseJsonObjects(string json) {
-            var list = new List<Dictionary<string, string>>();
-            var objMatches = Regex.Matches(json, @"\{([^{}]+)\}");
-            foreach (Match m in objMatches) {
-                var dict = new Dictionary<string, string>();
-                var kvMatches = Regex.Matches(m.Groups[1].Value, @"""([^""]+)""\s*:\s*""?([^"",\r\n}]+)""?");
-                foreach (Match kv in kvMatches) {
-                    dict[kv.Groups[1].Value.Trim()] = kv.Groups[2].Value.Trim();
-                }
-                if (dict.Count > 0) list.Add(dict);
-            }
-            return list;
+            return SaturnJson.ToTable(json);
         }
 
         private static string EscapeJson(string str) {
             if (string.IsNullOrEmpty(str)) return "";
             return str.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "").Replace("\n", "\\n");
+        }
+
+        public static string WriteAllTextAtomic(string path, string content, Encoding encoding) {
+            byte[] bytes = encoding.GetBytes(content);
+            return WriteAllBytesAtomic(path, bytes);
         }
 
         public static string WriteAllBytesAtomic(string path, byte[] data) {
@@ -2729,7 +2858,7 @@ namespace SaturnWindows {
             for (int attempt = 0; attempt < 5; attempt++) {
                 try {
                     if (File.Exists(path)) File.Delete(path);
-                    File.Copy(temp, path, true);
+                    File.Move(temp, path);
                     saved = true;
                     break;
                 } catch {
@@ -2738,13 +2867,12 @@ namespace SaturnWindows {
             }
 
             if (!saved) {
-                // If path is locked by another program, save with safe alternate name
                 string altPath = GetAvailableOutputPath(path, true);
-                File.Copy(temp, altPath, true);
+                File.Move(temp, altPath);
                 path = altPath;
             }
 
-            try { File.Delete(temp); } catch { }
+            try { if (File.Exists(temp)) File.Delete(temp); } catch { }
             return path;
         }
 
@@ -2798,6 +2926,164 @@ namespace SaturnWindows {
                     return sb.ToString();
                 }
             }
+        }
+    }
+
+    // === ROBUST JSON PARSER & TABULAR CONVERTER (ZERO REGEX, ZERO EXTERNAL DEPENDENCIES) ===
+    public static class SaturnJson {
+        public static object Parse(string json) {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            int idx = 0;
+            SkipWhitespace(json, ref idx);
+            return ParseValue(json, ref idx);
+        }
+
+        private static void SkipWhitespace(string s, ref int idx) {
+            while (idx < s.Length && (s[idx] == ' ' || s[idx] == '\t' || s[idx] == '\r' || s[idx] == '\n')) idx++;
+        }
+
+        private static object ParseValue(string s, ref int idx) {
+            SkipWhitespace(s, ref idx);
+            if (idx >= s.Length) return null;
+            char c = s[idx];
+            if (c == '{') return ParseObject(s, ref idx);
+            if (c == '[') return ParseArray(s, ref idx);
+            if (c == '"') return ParseString(s, ref idx);
+            if (c == 't' || c == 'T' || c == 'f' || c == 'F') return ParseBool(s, ref idx);
+            if (c == 'n' || c == 'N') return ParseNull(s, ref idx);
+            if (char.IsDigit(c) || c == '-') return ParseNumber(s, ref idx);
+            return null;
+        }
+
+        private static Dictionary<string, object> ParseObject(string s, ref int idx) {
+            var dict = new Dictionary<string, object>();
+            idx++; // skip '{'
+            SkipWhitespace(s, ref idx);
+            if (idx < s.Length && s[idx] == '}') { idx++; return dict; }
+
+            while (idx < s.Length) {
+                SkipWhitespace(s, ref idx);
+                if (idx >= s.Length || s[idx] != '"') break;
+                string key = ParseString(s, ref idx);
+                SkipWhitespace(s, ref idx);
+                if (idx < s.Length && s[idx] == ':') idx++;
+                object val = ParseValue(s, ref idx);
+                dict[key] = val;
+                SkipWhitespace(s, ref idx);
+                if (idx < s.Length && s[idx] == ',') { idx++; continue; }
+                if (idx < s.Length && s[idx] == '}') { idx++; break; }
+            }
+            return dict;
+        }
+
+        private static List<object> ParseArray(string s, ref int idx) {
+            var list = new List<object>();
+            idx++; // skip '['
+            SkipWhitespace(s, ref idx);
+            if (idx < s.Length && s[idx] == ']') { idx++; return list; }
+
+            while (idx < s.Length) {
+                object val = ParseValue(s, ref idx);
+                list.Add(val);
+                SkipWhitespace(s, ref idx);
+                if (idx < s.Length && s[idx] == ',') { idx++; continue; }
+                if (idx < s.Length && s[idx] == ']') { idx++; break; }
+            }
+            return list;
+        }
+
+        private static string ParseString(string s, ref int idx) {
+            idx++; // skip opening '"'
+            var sb = new StringBuilder();
+            while (idx < s.Length) {
+                char c = s[idx++];
+                if (c == '"') return sb.ToString();
+                if (c == '\\' && idx < s.Length) {
+                    char esc = s[idx++];
+                    if (esc == '"') sb.Append('"');
+                    else if (esc == '\\') sb.Append('\\');
+                    else if (esc == '/') sb.Append('/');
+                    else if (esc == 'b') sb.Append('\b');
+                    else if (esc == 'f') sb.Append('\f');
+                    else if (esc == 'n') sb.Append('\n');
+                    else if (esc == 'r') sb.Append('\r');
+                    else if (esc == 't') sb.Append('\t');
+                    else if (esc == 'u' && idx + 4 <= s.Length) {
+                        string hex = s.Substring(idx, 4);
+                        idx += 4;
+                        try { sb.Append((char)Convert.ToInt32(hex, 16)); } catch { }
+                    } else sb.Append(esc);
+                } else {
+                    sb.Append(c);
+                }
+            }
+            return sb.ToString();
+        }
+
+        private static bool ParseBool(string s, ref int idx) {
+            if (s.Substring(idx).StartsWith("true", StringComparison.OrdinalIgnoreCase)) { idx += 4; return true; }
+            if (s.Substring(idx).StartsWith("false", StringComparison.OrdinalIgnoreCase)) { idx += 5; return false; }
+            idx++;
+            return false;
+        }
+
+        private static object ParseNull(string s, ref int idx) {
+            if (s.Substring(idx).StartsWith("null", StringComparison.OrdinalIgnoreCase)) idx += 4;
+            else idx++;
+            return null;
+        }
+
+        private static object ParseNumber(string s, ref int idx) {
+            int start = idx;
+            if (s[idx] == '-') idx++;
+            while (idx < s.Length && (char.IsDigit(s[idx]) || s[idx] == '.' || s[idx] == 'e' || s[idx] == 'E' || s[idx] == '+' || s[idx] == '-')) {
+                idx++;
+            }
+            return s.Substring(start, idx - start);
+        }
+
+        public static List<Dictionary<string, string>> ToTable(string json) {
+            var list = new List<Dictionary<string, string>>();
+            try {
+                object root = Parse(json);
+                if (root is List<object>) {
+                    var arr = (List<object>)root;
+                    foreach (var item in arr) {
+                        if (item is Dictionary<string, object>) {
+                            var obj = (Dictionary<string, object>)item;
+                            var row = new Dictionary<string, string>();
+                            foreach (var kv in obj) {
+                                row[kv.Key] = kv.Value != null ? kv.Value.ToString() : "";
+                            }
+                            list.Add(row);
+                        }
+                    }
+                } else if (root is Dictionary<string, object>) {
+                    var obj = (Dictionary<string, object>)root;
+                    foreach (var kv in obj) {
+                        if (kv.Value is List<object>) {
+                            var subArr = (List<object>)kv.Value;
+                            foreach (var item in subArr) {
+                                if (item is Dictionary<string, object>) {
+                                    var subObj = (Dictionary<string, object>)item;
+                                    var row = new Dictionary<string, string>();
+                                    foreach (var subKv in subObj) {
+                                        row[subKv.Key] = subKv.Value != null ? subKv.Value.ToString() : "";
+                                    }
+                                    list.Add(row);
+                                }
+                            }
+                            if (list.Count > 0) return list;
+                        }
+                    }
+                    var singleRow = new Dictionary<string, string>();
+                    foreach (var kv in obj) {
+                        singleRow[kv.Key] = kv.Value != null ? kv.Value.ToString() : "";
+                    }
+                    list.Add(singleRow);
+                }
+            } catch { }
+            return list;
         }
     }
 
@@ -3200,10 +3486,15 @@ namespace SaturnWindows {
 
     // === MAIN ENTRY POINT (CLI + GUI SUPPORT) ===
     public class Program {
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool AttachConsole(int dwProcessId);
+        private const int ATTACH_PARENT_PROCESS = -1;
+
         [STAThread]
         public static void Main(string[] args) {
-            // CLI Mode: Orbit.exe convert <file> --to <ext>
+            // CLI Mode: Saturn.exe convert <file> --to <ext>
             if (args.Length >= 4 && args[0].Equals("convert", StringComparison.OrdinalIgnoreCase)) {
+                AttachConsole(ATTACH_PARENT_PROCESS);
                 string src = args[1];
                 string target = args[3];
                 try {
@@ -3217,8 +3508,9 @@ namespace SaturnWindows {
                 return;
             }
 
-            // CLI Mode: Orbit.exe tool <file> --action <toolId>
+            // CLI Mode: Saturn.exe tool <file> --action <toolId>
             if (args.Length >= 4 && args[0].Equals("tool", StringComparison.OrdinalIgnoreCase)) {
+                AttachConsole(ATTACH_PARENT_PROCESS);
                 string src = args[1];
                 string toolId = args[3];
                 try {
@@ -3282,9 +3574,9 @@ namespace SaturnWindows {
                 };
 
                 app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-                var orbit = new SaturnApp();
+                var saturn = new SaturnApp();
                 string initialArg = (args.Length > 0) ? args[0] : null;
-                orbit.Run(initialArg);
+                saturn.Run(initialArg);
                 app.Run();
             } catch (Exception ex) {
                 SaturnLog.LogException("Program.Main", ex);

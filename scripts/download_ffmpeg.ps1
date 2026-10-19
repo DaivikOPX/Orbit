@@ -1,4 +1,4 @@
-# Automated FFmpeg Downloader for Orbit
+# Automated FFmpeg Downloader for Saturn
 $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 $dest = Join-Path $rootDir "ffmpeg.exe"
@@ -9,7 +9,7 @@ if (Test-Path $dest) {
 }
 
 Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host " Orbit FFmpeg Downloader" -ForegroundColor Cyan
+Write-Host " Saturn FFmpeg Downloader" -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 
 # Check if winget is available
