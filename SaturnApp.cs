@@ -3552,7 +3552,9 @@ namespace SaturnWindows {
             }
 
             try {
-                // Global Crash Prevention & Self-Healing Handlers
+                AppDomain.CurrentDomain.ProcessExit += (s, e) => {
+                    SaturnLog.Write("PROCESS_EXIT", "ProcessExit called. Stack:\n" + Environment.StackTrace);
+                };
                 AppDomain.CurrentDomain.UnhandledException += (s, e) => {
                     SaturnLog.LogException("AppDomain.UnhandledException", e.ExceptionObject as Exception);
                 };
@@ -3568,6 +3570,9 @@ namespace SaturnWindows {
                 );
 
                 var app = new Application();
+                app.Exit += (s, e) => {
+                    SaturnLog.Write("APP_EXIT", "app.Exit triggered! Code: " + e.ApplicationExitCode + " Stack:\n" + Environment.StackTrace);
+                };
                 app.DispatcherUnhandledException += (s, e) => {
                     SaturnLog.LogException("DispatcherUnhandledException", e.Exception);
                     e.Handled = true; // Suppresses UI crash and keeps app alive
@@ -3577,7 +3582,9 @@ namespace SaturnWindows {
                 var saturn = new SaturnApp();
                 string initialArg = (args.Length > 0) ? args[0] : null;
                 saturn.Run(initialArg);
-                app.Run();
+                SaturnLog.Write("MAIN", "Calling app.Run()...");
+                int exitCode = app.Run();
+                SaturnLog.Write("MAIN", "app.Run() returned with exit code: " + exitCode);
             } catch (Exception ex) {
                 SaturnLog.LogException("Program.Main", ex);
             }
