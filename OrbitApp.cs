@@ -1403,6 +1403,14 @@ namespace OrbitWindows {
                 } else if (targetExt == "pdf") {
                     CreateImagePdf(srcPath, outPath);
                     return outPath;
+                } else if (targetExt == "docx") {
+                    using (var bmp = LoadAnyImageSafely(srcPath)) {
+                        using (var ms = new MemoryStream()) {
+                            bmp.Save(ms, ImageFormat.Jpeg);
+                            CreateDocxWithContent(outPath, null, new List<byte[]> { ms.ToArray() });
+                        }
+                    }
+                    return outPath;
                 }
             }
 
@@ -1527,8 +1535,9 @@ namespace OrbitWindows {
                     ExtractPdfText(srcPath, outPath);
                     return outPath;
                 } else if (targetExt == "docx") {
+                    var images = ExtractPdfImages(srcPath);
                     string txt = ExtractPdfRawText(srcPath);
-                    CreateTextDocx(txt, outPath);
+                    CreateDocxWithContent(outPath, txt, images);
                     return outPath;
                 } else if (targetExt == "html") {
                     string txt = ExtractPdfRawText(srcPath);
@@ -1858,9 +1867,15 @@ namespace OrbitWindows {
             WriteAllBytesAtomic(outputPath, pdfData);
         }
 
-        // --- DOCX GENERATOR (VALID OPENXML ZIP PACKAGE) ---
+        // --- DOCX GENERATOR (VALID OPENXML ZIP PACKAGE WITH DRAWINGML SUPPORT) ---
         public static void CreateTextDocx(string text, string outputPath) {
+            CreateDocxWithContent(outputPath, text, null);
+        }
+
+        public static void CreateDocxWithContent(string outputPath, string text, List<byte[]> images) {
             if (File.Exists(outputPath)) File.Delete(outputPath);
+            if (images == null) images = new List<byte[]>();
+
             using (var fs = new FileStream(outputPath, FileMode.Create)) {
                 using (var zip = new ZipArchive(fs, ZipArchiveMode.Create)) {
                     // [Content_Types].xml
@@ -1870,6 +1885,9 @@ namespace OrbitWindows {
                             "<Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">" +
                             "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/>" +
                             "<Default Extension=\"xml\" ContentType=\"application/xml\"/>" +
+                            "<Default Extension=\"jpeg\" ContentType=\"image/jpeg\"/>" +
+                            "<Default Extension=\"jpg\" ContentType=\"image/jpeg\"/>" +
+                            "<Default Extension=\"png\" ContentType=\"image/png\"/>" +
                             "<Override PartName=\"/word/document.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\"/>" +
                             "</Types>");
                     }
@@ -1883,18 +1901,102 @@ namespace OrbitWindows {
                             "</Relationships>");
                     }
 
+                    // word/_rels/document.xml.rels
+                    if (images.Count > 0) {
+                        var entryRels = zip.CreateEntry("word/_rels/document.xml.rels");
+                        using (var sw = new StreamWriter(entryRels.Open(), Encoding.UTF8)) {
+                            var sbRels = new StringBuilder();
+                            sbRels.Append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
+                            sbRels.Append("<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">");
+                            for (int i = 0; i < images.Count; i++) {
+                                sbRels.Append(string.Format("<Relationship Id=\"rIdImg{0}\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"media/image{0}.jpg\"/>", i + 1));
+                            }
+                            sbRels.Append("</Relationships>");
+                            sw.Write(sbRels.ToString());
+                        }
+
+                        // word/media/image{i}.jpg
+                        for (int i = 0; i < images.Count; i++) {
+                            var entryImg = zip.CreateEntry(string.Format("word/media/image{0}.jpg", i + 1));
+                            using (var imgStream = entryImg.Open()) {
+                                imgStream.Write(images[i], 0, images[i].Length);
+                            }
+                        }
+                    }
+
                     // word/document.xml
                     var entry3 = zip.CreateEntry("word/document.xml");
                     using (var sw = new StreamWriter(entry3.Open(), Encoding.UTF8)) {
                         var sb = new StringBuilder();
                         sb.Append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>");
-                        sb.Append("<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">");
+                        sb.Append("<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" " +
+                                  "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" " +
+                                  "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" " +
+                                  "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" " +
+                                  "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">");
                         sb.Append("<w:body>");
-                        var lines = text.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None);
-                        foreach (var line in lines) {
-                            string safe = System.Security.SecurityElement.Escape(line);
-                            sb.Append("<w:p><w:r><w:t xml:space=\"preserve\">" + safe + "</w:t></w:r></w:p>");
+
+                        // 1. Embed Images
+                        for (int i = 0; i < images.Count; i++) {
+                            int imgW = 400;
+                            int imgH = 300;
+                            try {
+                                using (var ms = new MemoryStream(images[i])) {
+                                    using (var tempImg = Image.FromStream(ms)) {
+                                        imgW = tempImg.Width;
+                                        imgH = tempImg.Height;
+                                    }
+                                }
+                            } catch { }
+
+                            long cx = (long)imgW * 9525L;
+                            long cy = (long)imgH * 9525L;
+                            long maxW = 5029200L; // 5.5 inches
+                            long maxH = 6858000L; // 7.5 inches
+                            if (cx > maxW) {
+                                cy = (long)((double)cy * maxW / cx);
+                                cx = maxW;
+                            }
+                            if (cy > maxH) {
+                                cx = (long)((double)cx * maxH / cy);
+                                cy = maxH;
+                            }
+
+                            int imgId = i + 1;
+                            sb.Append("<w:p><w:pPr><w:jc w:val=\"center\"/></w:pPr><w:r><w:drawing>");
+                            sb.Append("<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">");
+                            sb.Append(string.Format("<wp:extent cx=\"{0}\" cy=\"{1}\"/>", cx, cy));
+                            sb.Append("<wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>");
+                            sb.Append(string.Format("<wp:docPr id=\"{0}\" name=\"Picture {0}\"/>", imgId));
+                            sb.Append("<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect=\"1\"/></wp:cNvGraphicFramePr>");
+                            sb.Append("<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">");
+                            sb.Append("<pic:pic><pic:nvPicPr>");
+                            sb.Append(string.Format("<pic:cNvPr id=\"{0}\" name=\"Picture {0}\"/>", imgId));
+                            sb.Append("<pic:cNvPicPr/></pic:nvPicPr>");
+                            sb.Append("<pic:blipFill>");
+                            sb.Append(string.Format("<a:blip r:embed=\"rIdImg{0}\"/>", imgId));
+                            sb.Append("<a:stretch><a:fillRect/></a:stretch></pic:blipFill>");
+                            sb.Append("<pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/>");
+                            sb.Append(string.Format("<a:ext cx=\"{0}\" cy=\"{1}\"/>", cx, cy));
+                            sb.Append("</a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr>");
+                            sb.Append("</pic:pic></a:graphicData></a:graphic>");
+                            sb.Append("</wp:inline></w:drawing></w:r></w:p>");
                         }
+
+                        // 2. Embed Text
+                        if (!string.IsNullOrEmpty(text)) {
+                            var lines = text.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.None);
+                            foreach (var line in lines) {
+                                if (string.IsNullOrWhiteSpace(line)) continue;
+                                string safe = System.Security.SecurityElement.Escape(line);
+                                sb.Append("<w:p><w:r><w:t xml:space=\"preserve\">" + safe + "</w:t></w:r></w:p>");
+                            }
+                        }
+
+                        if (images.Count == 0 && string.IsNullOrWhiteSpace(text)) {
+                            sb.Append("<w:p/>");
+                        }
+
                         sb.Append("<w:sectPr/>");
                         sb.Append("</w:body></w:document>");
                         sw.Write(sb.ToString());
@@ -2147,25 +2249,163 @@ namespace OrbitWindows {
             return text.Trim();
         }
 
+        public static List<byte[]> ExtractPdfImages(string pdfPath) {
+            var images = new List<byte[]>();
+            try {
+                byte[] data = File.ReadAllBytes(pdfPath);
+                int len = data.Length;
+
+                // 1. Scan for embedded JPEG images (SOI: FF D8 FF ... EOI: FF D9)
+                int idx = 0;
+                while (idx < len - 3) {
+                    if (data[idx] == 0xFF && data[idx + 1] == 0xD8 && data[idx + 2] == 0xFF) {
+                        int soi = idx;
+                        int eoi = -1;
+                        for (int j = soi + 4; j < len - 1; j++) {
+                            if (data[j] == 0xFF && data[j + 1] == 0xD9) {
+                                eoi = j + 1;
+                                break;
+                            }
+                        }
+                        if (eoi != -1 && (eoi - soi + 1) > 32) {
+                            int imgLen = eoi - soi + 1;
+                            byte[] candidate = new byte[imgLen];
+                            Buffer.BlockCopy(data, soi, candidate, 0, imgLen);
+
+                            bool isValid = false;
+                            try {
+                                using (var ms = new MemoryStream(candidate)) {
+                                    using (var testImg = Image.FromStream(ms)) {
+                                        if (testImg.Width > 0 && testImg.Height > 0) isValid = true;
+                                    }
+                                }
+                            } catch { }
+
+                            if (isValid) {
+                                images.Add(candidate);
+                                idx = eoi + 1;
+                                continue;
+                            }
+                        }
+                    }
+                    idx++;
+                }
+
+                // 2. Scan for FlateDecode image streams if no JPEGs were found
+                if (images.Count == 0) {
+                    string rawAscii = Encoding.Default.GetString(data);
+                    var imgMatches = Regex.Matches(rawAscii, @"<<[^>]*?/Subtype\s*/Image[^>]*?>>\s*stream[\r\n]+");
+                    foreach (Match m in imgMatches) {
+                        string dict = m.Value;
+                        int streamStart = m.Index + m.Length;
+                        int streamEnd = rawAscii.IndexOf("endstream", streamStart);
+                        if (streamEnd > streamStart) {
+                            var wMatch = Regex.Match(dict, @"/Width\s+(\d+)");
+                            var hMatch = Regex.Match(dict, @"/Height\s+(\d+)");
+                            if (wMatch.Success && hMatch.Success) {
+                                int w = int.Parse(wMatch.Groups[1].Value);
+                                int h = int.Parse(hMatch.Groups[1].Value);
+                                int streamLen = streamEnd - streamStart;
+                                if (streamLen > 2) {
+                                    try {
+                                        byte[] streamBytes = new byte[streamLen];
+                                        Buffer.BlockCopy(data, streamStart, streamBytes, 0, streamLen);
+                                        using (var msIn = new MemoryStream(streamBytes, 2, streamBytes.Length - 2)) {
+                                            using (var def = new DeflateStream(msIn, CompressionMode.Decompress)) {
+                                                using (var msOut = new MemoryStream()) {
+                                                    def.CopyTo(msOut);
+                                                    byte[] rawPixels = msOut.ToArray();
+                                                    if (rawPixels.Length >= w * h * 3) {
+                                                        using (var bmp = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format24bppRgb)) {
+                                                            var bData = bmp.LockBits(new System.Drawing.Rectangle(0, 0, w, h), ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+                                                            int copyLen = Math.Min(rawPixels.Length, bData.Stride * h);
+                                                            Marshal.Copy(rawPixels, 0, bData.Scan0, copyLen);
+                                                            bmp.UnlockBits(bData);
+                                                            using (var msJpg = new MemoryStream()) {
+                                                                bmp.Save(msJpg, ImageFormat.Jpeg);
+                                                                images.Add(msJpg.ToArray());
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } catch { }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch { }
+            return images;
+        }
+
         public static void ExtractPdfText(string pdfPath, string outTxtPath) {
             string raw = ExtractPdfRawText(pdfPath);
+            if (string.IsNullOrWhiteSpace(raw)) {
+                var images = ExtractPdfImages(pdfPath);
+                if (images.Count > 0) {
+                    raw = string.Format("[Visual PDF document containing {0} embedded image(s). Convert to DOCX or image to view.]", images.Count);
+                } else {
+                    raw = "[Empty document]";
+                }
+            }
             File.WriteAllText(outTxtPath, raw, Encoding.UTF8);
         }
 
         public static string ExtractPdfRawText(string pdfPath) {
             try {
                 byte[] bytes = File.ReadAllBytes(pdfPath);
-                string content = Encoding.ASCII.GetString(bytes);
+                string content = Encoding.Default.GetString(bytes);
                 var sb = new StringBuilder();
-                var matches = Regex.Matches(content, @"\(([^)]*)\)\s*['Tj]");
-                foreach (Match m in matches) {
-                    if (m.Groups.Count > 1) {
-                        sb.AppendLine(m.Groups[1].Value.Replace("\\(", "(").Replace("\\)", ")").Replace("\\\\", "\\"));
+
+                // Search strictly inside BT (Begin Text) ... ET (End Text) blocks
+                var btMatches = Regex.Matches(content, @"BT\s+(.*?)\s+ET", RegexOptions.Singleline);
+                foreach (Match bt in btMatches) {
+                    string block = bt.Groups[1].Value;
+                    var textMatches = Regex.Matches(block, @"\(([^)]*)\)\s*(?:Tj|'|"")");
+                    foreach (Match tm in textMatches) {
+                        string val = tm.Groups[1].Value
+                            .Replace("\\(", "(")
+                            .Replace("\\)", ")")
+                            .Replace("\\\\", "\\");
+
+                        if (IsMostlyPrintableText(val)) {
+                            sb.AppendLine(val);
+                        }
+                    }
+
+                    var hexMatches = Regex.Matches(block, @"<([0-9A-Fa-f]+)>\s*(?:Tj|'|"")");
+                    foreach (Match hm in hexMatches) {
+                        string hex = hm.Groups[1].Value;
+                        if (hex.Length % 2 == 0) {
+                            try {
+                                var hexBytes = new byte[hex.Length / 2];
+                                for (int i = 0; i < hexBytes.Length; i++) {
+                                    hexBytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+                                }
+                                string val = Encoding.UTF8.GetString(hexBytes);
+                                if (IsMostlyPrintableText(val)) {
+                                    sb.AppendLine(val);
+                                }
+                            } catch { }
+                        }
                     }
                 }
-                if (sb.Length > 0) return sb.ToString();
+
+                if (sb.Length > 0) return sb.ToString().Trim();
             } catch { }
-            return "Document contents extracted by Orbit.";
+            return "";
+        }
+
+        private static bool IsMostlyPrintableText(string s) {
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            int printable = 0;
+            foreach (char c in s) {
+                if (c >= 32 && c <= 126 || c >= 160 || c == '\t' || c == '\r' || c == '\n')
+                    printable++;
+            }
+            return (double)printable / s.Length >= 0.75;
         }
 
         private static List<string> ParseDelimitedLine(string line, char delimiter) {
