@@ -985,7 +985,7 @@ namespace SaturnWindows {
             }
 
             if (string.IsNullOrEmpty(fileToProcess)) {
-                if (action.Mode == "action" && (action.ExtOrId == "terminal" || action.ExtOrId == "newdoc" || action.ExtOrId == "newtxt")) {
+                if (action.Mode == "action" && (action.ExtOrId == "terminal" || action.ExtOrId == "newdoc" || action.ExtOrId == "newtxt" || action.ExtOrId == "paste" || action.ExtOrId == "reveal" || action.ExtOrId == "copypath")) {
                     fileToProcess = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
                 } else {
                     var ofd = new OpenFileDialog {
@@ -1053,7 +1053,7 @@ namespace SaturnWindows {
         public static List<PetalAction> GetPetalsForExtension(string ext, string mode) {
             var list = new List<PetalAction>();
 
-            // Mode: Quick Actions
+            // Mode: Universal Actions (when explicit actions mode requested)
             if (mode == "actions") {
                 list.Add(new PetalAction("FLOAT", "Pin Shelf", "float", "action"));
                 list.Add(new PetalAction("COPY PATH", "Clipboard", "copypath", "action"));
@@ -1064,7 +1064,7 @@ namespace SaturnWindows {
                 return list;
             }
 
-            // Folder & Workspace Actions
+            // 1. Folder & Workspace Actions
             if (ext == "folder" || ext == "dir" || string.IsNullOrEmpty(ext)) {
                 list.Add(new PetalAction("TERMINAL", "PowerShell Here", "terminal", "action"));
                 list.Add(new PetalAction("EXPLORE", "Open Explorer", "reveal", "action"));
@@ -1077,8 +1077,66 @@ namespace SaturnWindows {
                 return list;
             }
 
-            // Video Files
-            if (ext == "mp4" || ext == "mov" || ext == "mkv" || ext == "webm" || ext == "avi" || ext == "wmv") {
+            // 2. Executables & Application Installers (.exe, .msi, .bat, .cmd, .ps1, .vbs, .com, .scr, .appx, .msix)
+            if (ext == "exe" || ext == "msi" || ext == "bat" || ext == "cmd" || ext == "ps1" || 
+                ext == "vbs" || ext == "com" || ext == "scr" || ext == "appx" || ext == "msix") {
+                list.Add(new PetalAction("RUN AS ADMIN", "Elevated", "runas", "action"));
+                list.Add(new PetalAction("CHECKSUM", "SHA-256 Hash", "hash", "action"));
+                list.Add(new PetalAction("FILE INFO", "Inspect Version", "info", "action"));
+                list.Add(new PetalAction("FLOAT", "Pin Shelf", "float", "action"));
+                list.Add(new PetalAction("COPY PATH", "Clipboard", "copypath", "action"));
+                list.Add(new PetalAction("COPY FILE", "Clipboard", "copy", "action"));
+                list.Add(new PetalAction("TERMINAL", "PowerShell Here", "terminal", "action"));
+                list.Add(new PetalAction("REVEAL", "Explorer", "reveal", "action"));
+                return list;
+            }
+
+            // 3. System Binaries & Dynamic Libraries (.dll, .sys, .ocx, .cpl, .bin, .dat, .iso, .img, .vhd, .rom)
+            if (ext == "dll" || ext == "sys" || ext == "ocx" || ext == "cpl" || ext == "bin" || 
+                ext == "dat" || ext == "iso" || ext == "img" || ext == "vhd" || ext == "rom") {
+                list.Add(new PetalAction("CHECKSUM", "SHA-256 Hash", "hash", "action"));
+                list.Add(new PetalAction("INSPECT PE", "Bitness & Info", "info", "action"));
+                list.Add(new PetalAction("HEX DUMP", "First 256 Bytes", "hex", "action"));
+                list.Add(new PetalAction("FLOAT", "Pin Shelf", "float", "action"));
+                list.Add(new PetalAction("COPY PATH", "Clipboard", "copypath", "action"));
+                list.Add(new PetalAction("COPY FILE", "Clipboard", "copy", "action"));
+                list.Add(new PetalAction("DUPLICATE", "In-Place", "duplicate", "action"));
+                list.Add(new PetalAction("TERMINAL", "PowerShell Here", "terminal", "action"));
+                return list;
+            }
+
+            // 4. Compressed Archives (.zip, .rar, .7z, .tar, .gz, .bz2, .xz, .cab, .tgz)
+            if (ext == "zip" || ext == "rar" || ext == "7z" || ext == "tar" || ext == "gz" || 
+                ext == "bz2" || ext == "xz" || ext == "cab" || ext == "tgz") {
+                list.Add(new PetalAction("EXTRACT HERE", "Unpack Archive", "extract", "action"));
+                list.Add(new PetalAction("CHECKSUM", "SHA-256 Hash", "hash", "action"));
+                list.Add(new PetalAction("FLOAT", "Pin Shelf", "float", "action"));
+                list.Add(new PetalAction("COPY PATH", "Clipboard", "copypath", "action"));
+                list.Add(new PetalAction("COPY FILE", "Clipboard", "copy", "action"));
+                list.Add(new PetalAction("DUPLICATE", "In-Place", "duplicate", "action"));
+                list.Add(new PetalAction("TERMINAL", "PowerShell Here", "terminal", "action"));
+                list.Add(new PetalAction("REVEAL", "Explorer", "reveal", "action"));
+                return list;
+            }
+
+            // 5. Code & Developer Scripts (.cs, .py, .js, .ts, .cpp, .c, .h, .hpp, .java, .rs, .go, .php, .rb, .sql, .sh, .yaml, .yml, .toml, .ini, .cfg)
+            if (ext == "cs" || ext == "py" || ext == "js" || ext == "ts" || ext == "cpp" || 
+                ext == "c" || ext == "h" || ext == "hpp" || ext == "java" || ext == "rs" || 
+                ext == "go" || ext == "php" || ext == "rb" || ext == "sql" || ext == "sh" || 
+                ext == "yaml" || ext == "yml" || ext == "toml" || ext == "ini" || ext == "cfg") {
+                list.Add(new PetalAction("EDIT CODE", "Open in Editor", "editcode", "action"));
+                list.Add(new PetalAction("METRICS", "Lines & Words", "wordcount", "action"));
+                list.Add(new PetalAction("CHECKSUM", "SHA-256 Hash", "hash", "action"));
+                list.Add(new PetalAction("TERMINAL", "PowerShell Here", "terminal", "action"));
+                list.Add(new PetalAction("FLOAT", "Pin Shelf", "float", "action"));
+                list.Add(new PetalAction("COPY PATH", "Clipboard", "copypath", "action"));
+                list.Add(new PetalAction("COPY FILE", "Clipboard", "copy", "action"));
+                list.Add(new PetalAction("DUPLICATE", "In-Place", "duplicate", "action"));
+                return list;
+            }
+
+            // 6. Video Files (.mp4, .mov, .mkv, .webm, .avi, .wmv, .flv, .m4v, .3gp)
+            if (ext == "mp4" || ext == "mov" || ext == "mkv" || ext == "webm" || ext == "avi" || ext == "wmv" || ext == "flv" || ext == "m4v" || ext == "3gp") {
                 if (mode == "tools") {
                     list.Add(new PetalAction("COMPRESS", "Web Friendly", "compress", "tool"));
                     list.Add(new PetalAction("METADATA", "Scrub EXIF", "metadata", "tool"));
@@ -1099,8 +1157,8 @@ namespace SaturnWindows {
                 return list;
             }
 
-            // Audio Files
-            if (ext == "mp3" || ext == "wav" || ext == "flac" || ext == "m4a" || ext == "ogg" || ext == "opus" || ext == "aiff") {
+            // 7. Audio Files (.mp3, .wav, .flac, .m4a, .ogg, .opus, .aiff, .wma, .aac)
+            if (ext == "mp3" || ext == "wav" || ext == "flac" || ext == "m4a" || ext == "ogg" || ext == "opus" || ext == "aiff" || ext == "wma" || ext == "aac") {
                 if (mode == "tools") {
                     list.Add(new PetalAction("NORMALIZE", "-14 LUFS", "normalize", "tool"));
                     list.Add(new PetalAction("COMPRESS", "Bitrate Opt", "compress", "tool"));
@@ -1119,8 +1177,8 @@ namespace SaturnWindows {
                 return list;
             }
 
-            // Documents (PDF, DOCX, TXT, MD, HTML)
-            if (ext == "pdf" || ext == "docx" || ext == "txt" || ext == "md" || ext == "html" || ext == "htm") {
+            // 8. Documents (.pdf, .docx, .txt, .md, .html, .htm, .rtf)
+            if (ext == "pdf" || ext == "docx" || ext == "txt" || ext == "md" || ext == "html" || ext == "htm" || ext == "rtf") {
                 if (mode == "tools") {
                     list.Add(new PetalAction("COMPRESS", "Optimize Size", "compress", "tool"));
                     list.Add(new PetalAction("METADATA", "Scrub Author", "metadata", "tool"));
@@ -1137,7 +1195,7 @@ namespace SaturnWindows {
                 return list;
             }
 
-            // Data & Spreadsheets (CSV, JSON, XML)
+            // 9. Structured Data (.csv, .tsv, .json, .xml)
             if (ext == "csv" || ext == "json" || ext == "xml" || ext == "tsv") {
                 if (mode == "tools") {
                     list.Add(new PetalAction("CHECKSUM", "SHA-256", "hash", "tool"));
@@ -1154,28 +1212,42 @@ namespace SaturnWindows {
                 return list;
             }
 
-            // Default: Images & All Other Formats
-            if (mode == "tools") {
-                list.Add(new PetalAction("COMPRESS", "Reduce Size", "compress", "tool"));
-                list.Add(new PetalAction("METADATA", "Scrub EXIF/GPS", "metadata", "tool"));
-                list.Add(new PetalAction("GRAYSCALE", "B&W Filter", "grayscale", "tool"));
-                list.Add(new PetalAction("ROTATE 90°", "Clockwise", "rotate", "tool"));
-                list.Add(new PetalAction("CHECKSUM", "SHA-256", "hash", "tool"));
-                list.Add(new PetalAction("FLOAT", "Pin Shelf", "float", "action"));
-            } else {
-                list.Add(new PetalAction("PNG", "Lossless 32-bit", "png"));
-                list.Add(new PetalAction("JPG", "High Quality", "jpg"));
-                list.Add(new PetalAction("WEBP", "Web Standard", "webp"));
-                list.Add(new PetalAction("ICO", "Multi-Size Icon", "ico"));
-                list.Add(new PetalAction("BMP", "Bitmap Matrix", "bmp"));
-                list.Add(new PetalAction("TIFF", "Archival Quality", "tiff"));
-                list.Add(new PetalAction("GIF", "Graphics Format", "gif"));
-                list.Add(new PetalAction("PDF", "Document Sheet", "pdf"));
+            // 10. REAL IMAGES ONLY (.png, .jpg, .jpeg, .webp, .bmp, .tiff, .tif, .gif, .ico, .svg, .heic, .avif, .jfif)
+            if (ext == "png" || ext == "jpg" || ext == "jpeg" || ext == "webp" || ext == "bmp" || 
+                ext == "tiff" || ext == "tif" || ext == "gif" || ext == "ico" || ext == "svg" || 
+                ext == "heic" || ext == "avif" || ext == "jfif") {
+                if (mode == "tools") {
+                    list.Add(new PetalAction("COMPRESS", "Reduce Size", "compress", "tool"));
+                    list.Add(new PetalAction("METADATA", "Scrub EXIF/GPS", "metadata", "tool"));
+                    list.Add(new PetalAction("GRAYSCALE", "B&W Filter", "grayscale", "tool"));
+                    list.Add(new PetalAction("ROTATE 90 deg", "Clockwise", "rotate", "tool"));
+                    list.Add(new PetalAction("CHECKSUM", "SHA-256", "hash", "tool"));
+                    list.Add(new PetalAction("FLOAT", "Pin Shelf", "float", "action"));
+                } else {
+                    list.Add(new PetalAction("PNG", "Lossless 32-bit", "png"));
+                    list.Add(new PetalAction("JPG", "High Quality", "jpg"));
+                    list.Add(new PetalAction("WEBP", "Web Standard", "webp"));
+                    list.Add(new PetalAction("ICO", "Multi-Size Icon", "ico"));
+                    list.Add(new PetalAction("BMP", "Bitmap Matrix", "bmp"));
+                    list.Add(new PetalAction("TIFF", "Archival Quality", "tiff"));
+                    list.Add(new PetalAction("GIF", "Graphics Format", "gif"));
+                    list.Add(new PetalAction("PDF", "Document Sheet", "pdf"));
+                }
+                return list;
             }
+
+            // 11. Generic Unknown File Fallback (NEVER show image conversions for unknown formats!)
+            list.Add(new PetalAction("CHECKSUM", "SHA-256 Hash", "hash", "action"));
+            list.Add(new PetalAction("FILE INFO", "Details & Size", "info", "action"));
+            list.Add(new PetalAction("HEX DUMP", "First 256 Bytes", "hex", "action"));
+            list.Add(new PetalAction("FLOAT", "Pin Shelf", "float", "action"));
+            list.Add(new PetalAction("COPY PATH", "Clipboard", "copypath", "action"));
+            list.Add(new PetalAction("COPY FILE", "Clipboard", "copy", "action"));
+            list.Add(new PetalAction("TERMINAL", "PowerShell Here", "terminal", "action"));
+            list.Add(new PetalAction("REVEAL", "Explorer", "reveal", "action"));
             return list;
         }
     }
-
     // === FLOATING PINNED SHELF ===
     public class FloatingShelfWindow : Window {
         private StackPanel listPanel;
@@ -1549,6 +1621,11 @@ namespace SaturnWindows {
             targetExt = targetExt.ToLower().TrimStart('.');
 
             string outPath = customOutPath ?? GetAvailableOutputPath(Path.Combine(dir, baseName + "_saturn." + targetExt));
+
+            // Reject binary/executable/application conversion requests explicitly
+            if (srcExt == "exe" || srcExt == "msi" || srcExt == "dll" || srcExt == "sys" || srcExt == "com") {
+                throw new InvalidOperationException(string.Format("Cannot convert application executable or binary (.{0}) to {1}. Saturn protects application files from destructive conversions.", srcExt, targetExt));
+            }
 
             // 1. IMAGE CONVERSIONS (Pillar 2: Native Windows Imaging Component [WIC] Pipeline)
             if (IsImageFormat(srcExt)) {
@@ -3286,7 +3363,8 @@ namespace SaturnWindows {
             RegisterShellContextMenu();
             StartNamedPipeListener();
 
-            hotkeyThread = new Thread(DedicatedHotkeyListener) { IsBackground = true };
+            hotkeyThread = new Thread(DedicatedHotkeyListener) { IsBackground = true };
+            hotkeyThread.SetApartmentState(ApartmentState.STA);
             hotkeyThread.Start();
             SaturnLog.Write("RUN", "Run completed successfully, background listeners active.");
 
@@ -3596,11 +3674,11 @@ namespace SaturnWindows {
                 return;
             }
 
-            string dir = Path.GetDirectoryName(filePath);
+            string dir = Directory.Exists(filePath) ? filePath : Path.GetDirectoryName(filePath);
             string baseName = Path.GetFileNameWithoutExtension(filePath);
             string ext = Path.GetExtension(filePath).ToLower();
 
-            // 1. Instant Actions
+            // 1. Instant Actions & Fast Utilities
             if (action.Mode == "action") {
                 try {
                     if (action.ExtOrId == "float") {
@@ -3617,17 +3695,202 @@ namespace SaturnWindows {
                         SoundFX.PlayChime();
                         toastWindow.ShowResult("📄 File Copied to Clipboard", Path.GetFileName(filePath), filePath);
                     } else if (action.ExtOrId == "reveal") {
-                        Process.Start("explorer.exe", string.Format("/select,\"{0}\"", filePath));
+                        if (Directory.Exists(filePath)) {
+                            Process.Start("explorer.exe", filePath);
+                        } else {
+                            Process.Start("explorer.exe", string.Format("/select,\"{0}\"", filePath));
+                        }
                     } else if (action.ExtOrId == "terminal") {
                         Process.Start(new ProcessStartInfo {
                             FileName = "powershell.exe",
                             WorkingDirectory = dir
                         });
                     } else if (action.ExtOrId == "duplicate") {
-                        string dupPath = SaturnEngine.GetAvailableOutputPath(Path.Combine(dir, baseName + "_copy" + ext));
-                        File.Copy(filePath, dupPath, true);
+                        if (File.Exists(filePath)) {
+                            string dupPath = SaturnEngine.GetAvailableOutputPath(Path.Combine(dir, baseName + "_copy" + ext));
+                            File.Copy(filePath, dupPath, true);
+                            SoundFX.PlayChime();
+                            toastWindow.ShowResult("✓ File Duplicated", Path.GetFileName(dupPath), dupPath);
+                        }
+                    } else if (action.ExtOrId == "runas") {
+                        try {
+                            var psi = new ProcessStartInfo {
+                                FileName = filePath,
+                                UseShellExecute = true,
+                                Verb = "runas"
+                            };
+                            Process.Start(psi);
+                            SoundFX.PlayChime();
+                            toastWindow.ShowResult("🛡️ Elevated Launch", "Running as Administrator", filePath);
+                        } catch (System.ComponentModel.Win32Exception) {
+                            // User clicked Cancel on UAC prompt
+                        }
+                    } else if (action.ExtOrId == "info") {
+                        var fi = new FileInfo(filePath);
+                        string infoText;
+                        if (ext == ".exe" || ext == ".dll") {
+                            try {
+                                var fvi = FileVersionInfo.GetVersionInfo(filePath);
+                                string desc = !string.IsNullOrEmpty(fvi.FileDescription) ? fvi.FileDescription : fi.Name;
+                                string ver = !string.IsNullOrEmpty(fvi.FileVersion) ? fvi.FileVersion : "1.0.0.0";
+                                string comp = !string.IsNullOrEmpty(fvi.CompanyName) ? fvi.CompanyName : "Unknown Vendor";
+                                string sz = fi.Length > 1048576 ? string.Format("{0:0.#} MB", fi.Length / 1048576.0) : string.Format("{0} KB", Math.Max(1, fi.Length / 1024));
+                                infoText = string.Format("{0} v{1} ({2}) [{3}]", desc, ver, comp, sz);
+                            } catch {
+                                infoText = string.Format("{0} ({1:0.#} MB)", fi.Name, fi.Length / 1048576.0);
+                            }
+                        } else {
+                            string sz = fi.Length > 1048576 ? string.Format("{0:0.#} MB", fi.Length / 1048576.0) : string.Format("{0} KB", Math.Max(1, fi.Length / 1024));
+                            infoText = string.Format("{0} ({1}) - Modified: {2:yyyy-MM-dd HH:mm}", fi.Name, sz, fi.LastWriteTime);
+                        }
+                        SaturnEngine.SafeSetClipboardText(infoText);
                         SoundFX.PlayChime();
-                        toastWindow.ShowResult("✓ File Duplicated", Path.GetFileName(dupPath), dupPath);
+                        toastWindow.ShowResult("ℹ️ File Information", infoText, filePath);
+                    } else if (action.ExtOrId == "hash") {
+                        ThreadPool.QueueUserWorkItem(s => {
+                            try {
+                                string h = SaturnEngine.ComputeSha256(filePath);
+                                SaturnEngine.SafeSetClipboardText(h);
+                                if (Application.Current != null && Application.Current.Dispatcher != null) {
+                                    Application.Current.Dispatcher.Invoke(() => {
+                                        SoundFX.PlayChime();
+                                        toastWindow.ShowResult("🔑 SHA-256 (Copied)", h.Substring(0, 16) + "...", filePath);
+                                    });
+                                }
+                            } catch (Exception ex) {
+                                SaturnLog.LogException("HandleRealAction.hash", ex);
+                            }
+                        });
+                    } else if (action.ExtOrId == "hex") {
+                        ThreadPool.QueueUserWorkItem(s => {
+                            try {
+                                byte[] buf = new byte[Math.Min(256, (int)new FileInfo(filePath).Length)];
+                                using (var fs = File.OpenRead(filePath)) {
+                                    fs.Read(buf, 0, buf.Length);
+                                }
+                                var sb = new StringBuilder();
+                                for (int i = 0; i < buf.Length; i += 16) {
+                                    sb.AppendFormat("{0:X4}: ", i);
+                                    int chunk = Math.Min(16, buf.Length - i);
+                                    for (int j = 0; j < chunk; j++) {
+                                        sb.AppendFormat("{0:X2} ", buf[i + j]);
+                                    }
+                                    for (int j = chunk; j < 16; j++) sb.Append("   ");
+                                    sb.Append(" ");
+                                    for (int j = 0; j < chunk; j++) {
+                                        byte b = buf[i + j];
+                                        sb.Append(b >= 32 && b <= 126 ? (char)b : '.');
+                                    }
+                                    sb.AppendLine();
+                                }
+                                string hexDump = sb.ToString();
+                                SaturnEngine.SafeSetClipboardText(hexDump);
+                                if (Application.Current != null && Application.Current.Dispatcher != null) {
+                                    Application.Current.Dispatcher.Invoke(() => {
+                                        SoundFX.PlayChime();
+                                        toastWindow.ShowResult("🔍 Hex Dump (Copied)", string.Format("{0} bytes previewed", buf.Length), filePath);
+                                    });
+                                }
+                            } catch (Exception ex) {
+                                SaturnLog.LogException("HandleRealAction.hex", ex);
+                            }
+                        });
+                    } else if (action.ExtOrId == "extract") {
+                        ThreadPool.QueueUserWorkItem(s => {
+                            try {
+                                string destDir = SaturnEngine.GetAvailableOutputPath(Path.Combine(dir, baseName));
+                                if (ext == ".zip") {
+                                    System.IO.Compression.ZipFile.ExtractToDirectory(filePath, destDir);
+                                } else {
+                                    Directory.CreateDirectory(destDir);
+                                    var psi = new ProcessStartInfo {
+                                        FileName = "tar.exe",
+                                        Arguments = string.Format("-xf \"{0}\" -C \"{1}\"", filePath, destDir),
+                                        CreateNoWindow = true,
+                                        UseShellExecute = false
+                                    };
+                                    var proc = Process.Start(psi);
+                                    proc.WaitForExit(15000);
+                                }
+                                if (Application.Current != null && Application.Current.Dispatcher != null) {
+                                    Application.Current.Dispatcher.Invoke(() => {
+                                        SoundFX.PlayChime();
+                                        toastWindow.ShowResult("📦 Archive Extracted", Path.GetFileName(destDir), destDir);
+                                    });
+                                }
+                            } catch (Exception ex) {
+                                SaturnLog.LogException("HandleRealAction.extract", ex);
+                                if (Application.Current != null && Application.Current.Dispatcher != null) {
+                                    Application.Current.Dispatcher.Invoke(() => {
+                                        toastWindow.ShowResult("✕ Extraction Failed", ex.Message, null);
+                                    });
+                                }
+                            }
+                        });
+                    } else if (action.ExtOrId == "editcode") {
+                        try {
+                            Process.Start(new ProcessStartInfo {
+                                FileName = filePath,
+                                UseShellExecute = true
+                            });
+                        } catch {
+                            Process.Start("notepad.exe", filePath);
+                        }
+                    } else if (action.ExtOrId == "wordcount") {
+                        try {
+                            string content = File.ReadAllText(filePath, Encoding.UTF8);
+                            int lineCount = content.Split(new char[] { '\n' }).Length;
+                            int wordCount = content.Split(new char[] { ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Length;
+                            int charCount = content.Length;
+                            string stats = string.Format("{0} lines, {1} words, {2} chars", lineCount, wordCount, charCount);
+                            SaturnEngine.SafeSetClipboardText(stats);
+                            SoundFX.PlayChime();
+                            toastWindow.ShowResult("📊 Code Metrics (Copied)", stats, filePath);
+                        } catch (Exception ex) {
+                            SaturnLog.LogException("HandleRealAction.wordcount", ex);
+                        }
+                    } else if (action.ExtOrId == "newdoc") {
+                        string docPath = SaturnEngine.GetAvailableOutputPath(Path.Combine(dir, "Document.docx"));
+                        SaturnEngine.CreateDocxWithContent(docPath, "Document created with Saturn for Windows.\r\n\r\nStart typing here...", null);
+                        SoundFX.PlayChime();
+                        toastWindow.ShowResult("📄 New Document Created", Path.GetFileName(docPath), docPath);
+                        try { Process.Start(docPath); } catch { }
+                    } else if (action.ExtOrId == "newtxt") {
+                        string txtPath = SaturnEngine.GetAvailableOutputPath(Path.Combine(dir, "Note.txt"));
+                        File.WriteAllText(txtPath, "", Encoding.UTF8);
+                        SoundFX.PlayChime();
+                        toastWindow.ShowResult("📝 New Note Created", Path.GetFileName(txtPath), txtPath);
+                        try { Process.Start("notepad.exe", txtPath); } catch { }
+                    } else if (action.ExtOrId == "paste") {
+                        if (System.Windows.Clipboard.ContainsFileDropList()) {
+                            var files = System.Windows.Clipboard.GetFileDropList();
+                            int pasted = 0;
+                            foreach (string f in files) {
+                                if (File.Exists(f)) {
+                                    string dest = SaturnEngine.GetAvailableOutputPath(Path.Combine(dir, Path.GetFileName(f)));
+                                    File.Copy(f, dest, true);
+                                    pasted++;
+                                }
+                            }
+                            SoundFX.PlayChime();
+                            toastWindow.ShowResult("📋 Pasted " + pasted + " item(s)", dir, dir);
+                        } else if (System.Windows.Clipboard.ContainsImage()) {
+                            var img = System.Windows.Clipboard.GetImage();
+                            string dest = SaturnEngine.GetAvailableOutputPath(Path.Combine(dir, "Pasted_Image.png"));
+                            using (var fileStream = new FileStream(dest, FileMode.Create)) {
+                                var encoder = new PngBitmapEncoder();
+                                encoder.Frames.Add(BitmapFrame.Create(img));
+                                encoder.Save(fileStream);
+                            }
+                            SoundFX.PlayChime();
+                            toastWindow.ShowResult("🖼️ Image Pasted", Path.GetFileName(dest), dest);
+                        } else if (System.Windows.Clipboard.ContainsText()) {
+                            string txt = System.Windows.Clipboard.GetText();
+                            string dest = SaturnEngine.GetAvailableOutputPath(Path.Combine(dir, "Pasted_Text.txt"));
+                            File.WriteAllText(dest, txt, Encoding.UTF8);
+                            SoundFX.PlayChime();
+                            toastWindow.ShowResult("📝 Text Pasted", Path.GetFileName(dest), dest);
+                        }
                     }
                 } catch (Exception ex) {
                     SaturnLog.LogException("HandleRealAction." + action.ExtOrId, ex);
@@ -3666,7 +3929,6 @@ namespace SaturnWindows {
             });
         }
     }
-
     // === MAIN ENTRY POINT (CLI + GUI SUPPORT) ===
     public class Program {
         [DllImport("kernel32.dll", SetLastError = true)]
