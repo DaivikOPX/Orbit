@@ -84,27 +84,52 @@ Built directly on Windows Presentation Foundation (WPF) with DirectWrite and Dir
 
 ---
 
-## 🏗️ Architecture
+## 🏛️ The Three Pillars of Saturn's Architecture
+
+Saturn is built upon three core architectural pillars designed to deliver the Windows equivalent of Apple's deepest native frameworks:
+
+### Pillar 1: The Universal Pipeline (Universal Intermediate Models)
+Every transformation flows through a decoupled, high-fidelity universal intermediate model (**Decoder $\rightarrow$ Universal Model $\rightarrow$ Encoder**):
+- **UniversalImage**: Raw 32-bit ARGB uncompressed frames, pixel formats, and color profiles. Decoders load to `UniversalImage`; encoders write to PNG, JPG, WEBP, ICO, BMP, TIFF, GIF, or PDF.
+- **UniversalDocument**: Structured Document AST (`DocumentAst`: title, headings, paragraphs, lists, tables with cells, embedded images, and metadata). Decodes from PDF, DOCX, HTML, Markdown, and TXT; encodes into any document format.
+- **UniversalData**: Tabular schema model (`DataTableSchema`: column headers and typed row dictionaries). Translates seamlessly across JSON, CSV, TSV, XML, HTML Data Table, and Markdown Table.
+- **UniversalAudio**: Raw 32-bit float audio buffer for lossless resampling, LUFS loudness normalization, and container repackaging.
+
+### Pillar 2: Specialized Windows Native Mini-Engines
+High-performance zero-dependency native mini-engines for each specific domain:
+- **`WicMiniEngine`**: Direct hardware-accelerated Windows Imaging Component (WIC) encoder/decoder via `System.Windows.Media.Imaging`. Zero external DLLs, native Windows GPU acceleration.
+- **`GdiMiniEngine`**: Specialized GDI+ pixel processor for multi-frame 256→16px ICO packaging, B&W luminance grayscale filtering, and lossless 90° clockwise orientation rotation.
+- **`OpenXmlMiniEngine`**: Native OpenXML packaging engine (`System.IO.Packaging.Package`) generating compliant `.docx` archives with styled headings, borders, tables, and embedded DrawingML images (`word/media/`).
+- **`SaturnPdfMiniEngine`**: RFC 1950 zlib FlateDecode stream decompressor, pure C# stream parser, text/image extractor, and vector PDF generator.
+- **`SaturnDataMiniEngine`**: RFC 4180 streaming CSV/TSV parser, recursive-descent JSON parser/serializer (`SaturnJson`), and structured XML engine.
+- **`WindowsMediaMiniEngine`**: Windows Media Foundation & PCM wave audio pipeline with 2-pass EBU R128 (-14 LUFS) audio loudness normalizer and FFmpeg fallback.
+- **`SaturnToolboxMiniEngine`**: 8 instant tools: Mute, Web-Friendly Compress, LUFS Normalizer, EXIF/GPS Scrubber, Snapshot Video Frame, SHA-256 Cryptographic Checksum, Rotate, and Grayscale.
+
+### Pillar 3: Omnipresent Windows Shell & Selection Bridge
+A unified context bridge that works across all Windows versions, drives, and directory structures:
+- **Strict Rising-Edge F8 Detection**: Tracks key-down transitions (`isF8Down && !wasF8Down`). Prevents the common 20ms auto-dismiss bug caused by human key-release latency.
+- **Multi-Monitor Virtual Screen Geometry**: Calculates exact bounds using `VirtualScreenLeft`, `VirtualScreenTop`, `VirtualScreenWidth`, and `VirtualScreenHeight`, positioning the radial dial at cursor on any monitor or arbitrary DPI scaling factor (100%, 125%, 150%, 200%).
+- **Multi-Layer Selection Detection**:
+  - *Layer 1 (Shell COM)*: Traverses `IShellWindows` across Explorer tabs to capture selected items or active folder path.
+  - *Layer 2 (Window Hierarchy)*: Inspects foreground `CabinetWClass` window titles and drive paths (`D:\`, `E:\`).
+  - *Layer 3 (Non-Blocking Clipboard)*: Background-thread `CF_HDROP` query with zero UI Dispatcher freezing.
+  - *Layer 4 (Workspace / Folder Mode)*: When no file is selected in an active directory, Saturn does not fail or display blank petals. Instead, it opens in **Workspace Mode** with instant actions: `TERMINAL` (PowerShell here), `EXPLORE` (New Explorer window), `NEW DOC` (Word document), `NEW TEXT` (Note), `PASTE HERE` (Clipboard paste), `COPY PATH`, and `PIN SHELF`.
 
 ```mermaid
 flowchart TD
-    A["🗂️ File Selection in Explorer (Hotkey F8 or Right-Click)"] --> B{"MIME & Magic-Byte Sniffer"}
-    B -->|Raster / Vector Image| C["Image Action Pipeline"]
-    B -->|Audio / Video Media| D["Media Engine Pipeline"]
-    B -->|Document / Text / Markup| E["Document Engine Pipeline"]
-    B -->|Structured Tabular / JSON| F["Data Parser Pipeline"]
+    A["🗂️ File / Folder in Explorer (F8 Hotkey)"] --> B{"Pillar 3: Omnipresent Shell Bridge"}
+    B -->|File Selected| C["MIME & Format Sniffer"]
+    B -->|Folder / Drive Root| D["Workspace Actions (Terminal, New Doc, Paste, Shelf)"]
     
-    C & D & E & F --> G["120 FPS Radial HUD Compositor"]
-    G --> H["Sector Selection & Gesture Flick"]
+    C --> E{"Pillar 1: Universal Intermediate Pipeline"}
+    E -->|UniversalImage| F["WicMiniEngine / GdiMiniEngine"]
+    E -->|UniversalDocument| G["OpenXmlMiniEngine / SaturnPdfMiniEngine"]
+    E -->|UniversalData| H["SaturnDataMiniEngine (JSON/CSV/XML)"]
+    E -->|UniversalAudio| I["WindowsMediaMiniEngine / FFmpeg"]
     
-    H --> I{"Unified Engine Dispatcher"}
-    I -->|Media Streams| J["FFmpeg Core Engine"]
-    I -->|Graphics & Image Processing| K["Windows Imaging Component (WIC)"]
-    I -->|Document & OpenXML Structure| L["Saturn OpenXML & PDF Engine"]
-    I -->|Tabular & Serialized Formats| M["Saturn XML/JSON/CSV Parser"]
-    
-    J & K & L & M --> N["Atomic Output Writer (_saturn.ext)"]
-    N --> O["Pitch-Black Notification Toast & Sound Haptic"]
+    F & G & H & I --> J["120 FPS Radial HUD Compositor"]
+    J --> K["Atomic Output Writer (_saturn.ext)"]
+    K --> L["Pitch-Black Notification Toast & Sound Haptic"]
 ```
 
 ---

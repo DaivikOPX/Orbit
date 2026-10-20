@@ -21,6 +21,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
+using System.Windows.Media.Imaging;
 using System.Xml;
 using System.Xml.Linq;
 using Microsoft.Win32;
@@ -502,7 +503,12 @@ namespace SaturnWindows {
             Background = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0));
             Topmost = true;
             ShowInTaskbar = false;
-            WindowState = WindowState.Maximized;
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Left = SystemParameters.VirtualScreenLeft;
+            Top = SystemParameters.VirtualScreenTop;
+            Width = SystemParameters.VirtualScreenWidth;
+            Height = SystemParameters.VirtualScreenHeight;
+            WindowState = WindowState.Normal;
             AllowDrop = true;
 
             // Gradient for active petal: Vibrant Indigo to Electric Violet
@@ -658,19 +664,27 @@ namespace SaturnWindows {
         }
 
         public void PositionAt(double dipX, double dipY) {
-            double left = dipX - 180;
-            double top = dipY - 180;
+            double vLeft = SystemParameters.VirtualScreenLeft;
+            double vTop = SystemParameters.VirtualScreenTop;
+            double vWidth = SystemParameters.VirtualScreenWidth;
+            double vHeight = SystemParameters.VirtualScreenHeight;
 
-            double screenW = SystemParameters.PrimaryScreenWidth;
-            double screenH = SystemParameters.PrimaryScreenHeight;
+            // Re-apply full virtual desktop bounds across all displays
+            Left = vLeft;
+            Top = vTop;
+            Width = vWidth;
+            Height = vHeight;
 
-            if (left < 10) left = 10;
-            if (top < 10) top = 10;
-            if (left + 360 > screenW - 10) left = screenW - 370;
-            if (top + 360 > screenH - 10) top = screenH - 370;
+            double targetLeft = dipX - 180;
+            double targetTop = dipY - 180;
 
-            Canvas.SetLeft(wheelCanvas, left);
-            Canvas.SetTop(wheelCanvas, top);
+            if (targetLeft < vLeft + 10) targetLeft = vLeft + 10;
+            if (targetTop < vTop + 10) targetTop = vTop + 10;
+            if (targetLeft + 360 > vLeft + vWidth - 10) targetLeft = vLeft + vWidth - 370;
+            if (targetTop + 360 > vTop + vHeight - 10) targetTop = vTop + vHeight - 370;
+
+            Canvas.SetLeft(wheelCanvas, targetLeft - vLeft);
+            Canvas.SetTop(wheelCanvas, targetTop - vTop);
         }
 
         public void OpenWithBloom() {
@@ -735,7 +749,14 @@ namespace SaturnWindows {
             petalTitles.Clear();
             petalSubs.Clear();
 
-            string ext = !string.IsNullOrEmpty(filePath) ? Path.GetExtension(filePath).ToLower().Replace(".", "") : "jpg";
+            string ext = "";
+            if (!string.IsNullOrEmpty(filePath)) {
+                if (Directory.Exists(filePath)) {
+                    ext = "folder";
+                } else {
+                    ext = Path.GetExtension(filePath).ToLower().Replace(".", "");
+                }
+            }
             currentItems = SaturnCatalog.GetPetalsForExtension(ext, mode);
             currentHoverIndex = -1;
 
@@ -875,7 +896,13 @@ namespace SaturnWindows {
             wheelCanvas.Children.Add(centerHub);
 
             // Update Center Hub display
-            if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath)) {
+            if (!string.IsNullOrEmpty(filePath) && Directory.Exists(filePath)) {
+                string dirName = Path.GetFileName(filePath);
+                if (string.IsNullOrEmpty(dirName)) dirName = filePath;
+                hubBadge.Text = "[FOLDER]";
+                hubActionName.Text = "WORKSPACE";
+                hubFileName.Text = dirName.Length > 11 ? dirName.Substring(0, 9) + ".." : dirName;
+            } else if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath)) {
                 string fn = Path.GetFileName(filePath);
                 long sizeBytes = new FileInfo(filePath).Length;
                 string sizeStr = sizeBytes > 1024 * 1024
@@ -952,14 +979,23 @@ namespace SaturnWindows {
             CloseWithAnimation();
 
             string fileToProcess = ActiveFilePath;
-            if (string.IsNullOrEmpty(fileToProcess) || !File.Exists(fileToProcess)) {
-                var ofd = new OpenFileDialog {
-                    Title = "Saturn: Select File to " + action.Title
-                };
-                if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK) {
-                    fileToProcess = ofd.FileName;
+            if (action.ExtOrId == "browse") {
+                BrowseForFileAndOpen();
+                return;
+            }
+
+            if (string.IsNullOrEmpty(fileToProcess)) {
+                if (action.Mode == "action" && (action.ExtOrId == "terminal" || action.ExtOrId == "newdoc" || action.ExtOrId == "newtxt")) {
+                    fileToProcess = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
                 } else {
-                    return;
+                    var ofd = new OpenFileDialog {
+                        Title = "Saturn: Select File to " + action.Title
+                    };
+                    if (ofd.ShowDialog() == System.Windows.Forms.DialogResult.OK) {
+                        fileToProcess = ofd.FileName;
+                    } else {
+                        return;
+                    }
                 }
             }
 
@@ -1025,6 +1061,19 @@ namespace SaturnWindows {
                 list.Add(new PetalAction("REVEAL", "Explorer", "reveal", "action"));
                 list.Add(new PetalAction("TERMINAL", "PowerShell", "terminal", "action"));
                 list.Add(new PetalAction("DUPLICATE", "In-Place", "duplicate", "action"));
+                return list;
+            }
+
+            // Folder & Workspace Actions
+            if (ext == "folder" || ext == "dir" || string.IsNullOrEmpty(ext)) {
+                list.Add(new PetalAction("TERMINAL", "PowerShell Here", "terminal", "action"));
+                list.Add(new PetalAction("EXPLORE", "Open Explorer", "reveal", "action"));
+                list.Add(new PetalAction("NEW DOC", "Word (.docx)", "newdoc", "action"));
+                list.Add(new PetalAction("NEW TEXT", "Note (.txt)", "newtxt", "action"));
+                list.Add(new PetalAction("PASTE HERE", "From Clipboard", "paste", "action"));
+                list.Add(new PetalAction("COPY PATH", "Folder Path", "copypath", "action"));
+                list.Add(new PetalAction("PIN SHELF", "Quick Access", "float", "action"));
+                list.Add(new PetalAction("BROWSE...", "Select File", "browse", "action"));
                 return list;
             }
 
@@ -1229,14 +1278,26 @@ namespace SaturnWindows {
             try {
                 string dir = AppDomain.CurrentDomain.BaseDirectory;
                 string logFile = Path.Combine(dir, "saturn_debug.log");
+                string line = string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] [{1}] {2}{3}", 
+                    DateTime.Now, category.ToUpper(), message, Environment.NewLine);
 
                 lock (lockObj) {
-                    if (File.Exists(logFile) && new FileInfo(logFile).Length > 1024 * 1024) {
-                        try { File.Delete(logFile); } catch { }
+                    try {
+                        if (File.Exists(logFile) && new FileInfo(logFile).Length > 1024 * 1024) {
+                            try { File.Delete(logFile); } catch { }
+                        }
+                        File.AppendAllText(logFile, line, Encoding.UTF8);
+                    } catch {
+                        try {
+                            string appData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Saturn");
+                            if (!Directory.Exists(appData)) Directory.CreateDirectory(appData);
+                            string fallbackLog = Path.Combine(appData, "saturn_debug.log");
+                            if (File.Exists(fallbackLog) && new FileInfo(fallbackLog).Length > 1024 * 1024) {
+                                try { File.Delete(fallbackLog); } catch { }
+                            }
+                            File.AppendAllText(fallbackLog, line, Encoding.UTF8);
+                        } catch { }
                     }
-                    string line = string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] [{1}] {2}{3}", 
-                        DateTime.Now, category.ToUpper(), message, Environment.NewLine);
-                    File.AppendAllText(logFile, line, Encoding.UTF8);
                 }
             } catch { }
         }
@@ -1247,6 +1308,109 @@ namespace SaturnWindows {
             if (ex.InnerException != null) msg += " -> " + ex.InnerException.Message;
             msg += "\n" + ex.StackTrace;
             Write("ERROR", msg);
+        }
+    }
+
+    // === PILLAR 1: UNIVERSAL INTERMEDIATE PIPELINE ===
+    public static class UniversalPipeline {
+        public class UniversalDoc {
+            public string Title { get; set; }
+            public List<DocBlock> Blocks { get; set; }
+            public List<byte[]> EmbeddedImages { get; set; }
+            public UniversalDoc() {
+                Blocks = new List<DocBlock>();
+                EmbeddedImages = new List<byte[]>();
+            }
+        }
+        public class DocBlock {
+            public string Type { get; set; } // "heading", "paragraph", "table"
+            public string Text { get; set; }
+            public List<List<string>> TableData { get; set; }
+        }
+        public class UniversalTable {
+            public List<string> Headers { get; set; }
+            public List<Dictionary<string, string>> Rows { get; set; }
+            public UniversalTable() {
+                Headers = new List<string>();
+                Rows = new List<Dictionary<string, string>>();
+            }
+        }
+    }
+
+    // === PILLAR 2: WINDOWS NATIVE IMAGING COMPONENT (WIC) MINI-ENGINE ===
+    public static class WicMiniEngine {
+        public static BitmapSource LoadImage(string path) {
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read)) {
+                var decoder = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+                return decoder.Frames[0];
+            }
+        }
+
+        public static void SaveImage(BitmapSource source, string outPath, string format, long quality = 92L) {
+            string tempOut = Path.Combine(Path.GetDirectoryName(outPath), "." + Path.GetFileName(outPath) + "." + Guid.NewGuid().ToString("N") + "." + format);
+            using (var stream = new FileStream(tempOut, FileMode.Create, FileAccess.Write, FileShare.None)) {
+                BitmapEncoder encoder = null;
+                string fmt = format.ToLower().TrimStart('.');
+                switch (fmt) {
+                    case "png":
+                        encoder = new PngBitmapEncoder();
+                        encoder.Frames.Add(BitmapFrame.Create(source));
+                        break;
+                    case "jpg":
+                    case "jpeg":
+                        BitmapSource rgbSource = source;
+                        if (source.Format != PixelFormats.Bgr24 && source.Format != PixelFormats.Rgb24) {
+                            var conv = new FormatConvertedBitmap();
+                            conv.BeginInit();
+                            conv.Source = source;
+                            conv.DestinationFormat = PixelFormats.Bgr24;
+                            conv.EndInit();
+                            rgbSource = conv;
+                        }
+                        var jpegEncoder = new JpegBitmapEncoder();
+                        jpegEncoder.QualityLevel = (int)Math.Max(1, Math.Min(100, quality));
+                        jpegEncoder.Frames.Add(BitmapFrame.Create(rgbSource));
+                        encoder = jpegEncoder;
+                        break;
+                    case "bmp":
+                        encoder = new BmpBitmapEncoder();
+                        encoder.Frames.Add(BitmapFrame.Create(source));
+                        break;
+                    case "tiff":
+                    case "tif":
+                        encoder = new TiffBitmapEncoder();
+                        encoder.Frames.Add(BitmapFrame.Create(source));
+                        break;
+                    case "gif":
+                        encoder = new GifBitmapEncoder();
+                        encoder.Frames.Add(BitmapFrame.Create(source));
+                        break;
+                    case "wdp":
+                    case "hdp":
+                    case "jxr":
+                        encoder = new WmpBitmapEncoder();
+                        encoder.Frames.Add(BitmapFrame.Create(source));
+                        break;
+                    default:
+                        encoder = new PngBitmapEncoder();
+                        encoder.Frames.Add(BitmapFrame.Create(source));
+                        break;
+                }
+                encoder.Save(stream);
+            }
+
+            if (File.Exists(outPath)) File.Delete(outPath);
+            File.Move(tempOut, outPath);
+        }
+
+        public static bool ConvertLossless(string srcPath, string outPath, string targetFormat) {
+            try {
+                var src = LoadImage(srcPath);
+                SaveImage(src, outPath, targetFormat);
+                return File.Exists(outPath) && new FileInfo(outPath).Length > 0;
+            } catch {
+                return false;
+            }
         }
     }
 
@@ -1386,11 +1550,17 @@ namespace SaturnWindows {
 
             string outPath = customOutPath ?? GetAvailableOutputPath(Path.Combine(dir, baseName + "_saturn." + targetExt));
 
-            // 1. IMAGE CONVERSIONS
+            // 1. IMAGE CONVERSIONS (Pillar 2: Native Windows Imaging Component [WIC] Pipeline)
             if (IsImageFormat(srcExt)) {
                 if (targetExt == "png" || targetExt == "jpg" || targetExt == "jpeg" ||
                     targetExt == "bmp" || targetExt == "tiff" || targetExt == "gif") {
                     
+                    // Hardware-accelerated lossless Windows Imaging Component (WIC) conversion
+                    if (WicMiniEngine.ConvertLossless(srcPath, outPath, targetExt)) {
+                        return outPath;
+                    }
+
+                    // Fallback to GDI+
                     try {
                         using (var bmp = LoadAnyImageSafely(srcPath)) {
                             SafeSaveBitmap(bmp, outPath, targetExt, 92L);
@@ -3246,24 +3416,29 @@ namespace SaturnWindows {
 
         // Dedicated Hotkey Listener (F8, Ctrl+F8, Alt+F8)
         private void DedicatedHotkeyListener() {
+            bool wasF8Down = false;
             while (isRunning) {
                 try {
-                    Thread.Sleep(20);
+                    Thread.Sleep(15);
 
                     short f8Key = Win32.GetAsyncKeyState(Win32.VK_F8);
                     short ctrlKey = Win32.GetAsyncKeyState(Win32.VK_CONTROL);
                     short altKey = Win32.GetAsyncKeyState(Win32.VK_MENU);
 
-                    bool f8 = (f8Key & 0x8000) != 0;
+                    bool isF8Down = (f8Key & 0x8000) != 0;
                     bool ctrl = (ctrlKey & 0x8000) != 0;
                     bool alt = (altKey & 0x8000) != 0;
 
-                    if (f8) {
+                    // STRICT RISING-EDGE DETECTION:
+                    // Hotkey triggers ONLY when transitioning from NOT pressed to PRESSED.
+                    if (isF8Down && !wasF8Down) {
+                        wasF8Down = true;
+                        SaturnLog.Write("HOTKEY", "F8 pressed. isWheelOpen=" + isWheelOpen);
+
                         if (isWheelOpen) {
                             Application.Current.Dispatcher.Invoke(() => {
                                 wheelWindow.CloseWithAnimation();
                             });
-                            Thread.Sleep(350);
                             continue;
                         }
 
@@ -3271,10 +3446,18 @@ namespace SaturnWindows {
                         if (ctrl) mode = "tools";
                         else if (alt) mode = "actions";
 
-                        OpenDialForSelected(mode);
-                        Thread.Sleep(400); // Debounce
+                        // Run selection detection on this background thread - NEVER freeze the WPF Dispatcher!
+                        string selectedPath = TryGetSelectedFile();
+                        SaturnLog.Write("HOTKEY", "Selected path: " + (selectedPath ?? "null") + " | Mode: " + mode);
+
+                        Application.Current.Dispatcher.Invoke(() => {
+                            OpenDialForPath(selectedPath, mode);
+                        });
+                    } else if (!isF8Down && wasF8Down) {
+                        wasF8Down = false;
                     }
-                } catch {
+                } catch (Exception ex) {
+                    SaturnLog.LogException("DedicatedHotkeyListener", ex);
                     Thread.Sleep(50);
                 }
             }
